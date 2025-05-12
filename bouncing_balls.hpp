@@ -62,10 +62,7 @@ public:
             printf("lv_draw_buf_init failed %d\n", res);
         }
 
-        printf("bouncing balls vor create screen\n");
         screen = lv_obj_create(NULL);
-        printf("Bouncing Ball screen=%p\n", screen);
-        // lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 3000, 0, false);
 
         canvas = lv_canvas_create(screen);
         lv_canvas_set_buffer(canvas, data_buf, width, height, LV_COLOR_FORMAT_RGB888);
