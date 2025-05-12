@@ -11,6 +11,7 @@
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
 class ImageAnimation
 {
+private:
     static void image_animation_cb(void *var, int32_t v)
     {
         lv_image_set_rotation((lv_obj_t *)var, v);
@@ -29,8 +30,9 @@ class ImageAnimation
 
     lv_obj_t *screen = nullptr;
     lv_obj_t *vanessa = nullptr;
-    lv_anim_t a;
     lv_image_dsc_t img_desc;
+
+    lv_anim_t a;
 
     uint width, height;
     bool animation_done = false;
@@ -41,8 +43,6 @@ public:
         screen = lv_obj_create(NULL);
 
         vanessa = lv_image_create(screen);
-        lv_draw_image_dsc_t img_draw_desc;
-        lv_draw_image_dsc_init(&img_draw_desc);
 
         img_desc.data_size = sizeof(vanessa_mai_64x64);
         img_desc.data = vanessa_mai_64x64;
@@ -66,7 +66,7 @@ public:
         lv_anim_set_duration(&a, duration_in_ms);
 
         lv_anim_set_repeat_count(&a, 1);
-        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)image_animation_cb);
+        lv_anim_set_exec_cb(&a, static_cast<lv_anim_exec_xcb_t>(image_animation_cb));
         lv_anim_set_completed_cb(&a, image_animation_completed_cb);
         lv_anim_set_start_cb(&a, image_animation_started_cb);
     }
