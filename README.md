@@ -203,7 +203,10 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
 
 - **Add some more graphics examples** to explore the capabilities of LVGL on Pico.
 
-For any questions or discussions, feel free to contribute or open an issue!
+## Support
+Any contribution to the project is appreciated!
+
+For any question or problem, feel free to open an issue!
 
 
 ## License
