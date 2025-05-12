@@ -1,17 +1,26 @@
-# LVGL Demo on Raspberry Pi Pico with HUB75 RGB LED Matrix
+# LVGL Demo on Raspberry Pi Pico with Attached HUB75 RGB LED Matrix
 
-⚠️ **Work in progress - this is an interim version which will definitely change a lot**
+This project demonstrates how to run [LVGL](https://lvgl.io/) on a Raspberry Pi Pico (RP2040 or RP2040-compatible microcontroller) to drive an attached HUB75 RGB LED matrix panel.
 
-This project demonstrates how to run [LVGL](https://lvgl.io/) on a Raspberry Pi Pico (RP2040 or RP2040-compatible) to drive a HUB75 RGB LED matrix panel using the optimized DMA-based [hub75 driver](https://github.com/JuPfu/hub75).
 
-It showcases three demo effects:
-- **Bouncing Balls** – includes circular vertical scrolling text (15 seconds)
-- **Fire Effect** – a 15-second animated flame effect
-- **Image Animation** – displays a rotating image for two full rotations, followed by a 15-second pause
+## Demo Effects
 
-Transition effects like fade-ins or slide-outs are applied between demos.
+This project currently demonstrates three animated demos:
+
+- 🎾 **Bouncing Balls** — includes circular horizontal scrolling text (15 sec)
+- 🔥 **Fire Effect** — Animated flame using procedural effect (15 sec)
+- 🖼️ **Image Animation** — Rotating static image for 360 degrees, then idle for 15 sec
+
+✨ Transitions (fade or slide) are applied between demos.
 
 ---
+
+## Project Goals and Focus
+
+The LED matrix driver used in this project is an evolution of [Pimoroni's HUB75 driver](https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75) which leans on [Raspberry Pi's pico-examples/pio/hub75](https://github.com/raspberrypi/pico-examples). It is an optimised driver which boosts performance through self-paced, interlinked DMA and PIO processes. The LED Matrix driver implementation is described in detail in [Hub75](https://github.com/JuPfu/hub75). The examples in this referenced project utilise [Pimoronis Pico Graphics library](https://github.com/pimoroni/pimoroni-pico/tree/main/libraries/pico_graphics) to show the capabilities of the LED matrix driver. Pimoronis Pico Graphics library is a tiny graphics library <cite>which supports drawing text, primitive and individual pixels and includes basic types such as Rect and Point brimming with methods to help you develop games and applications.</cite>
+
+The goal of this project is to substitute Pimoronis Pico Graphics library with the **[Light and Versatile Graphics Library](https://lvgl.io/)** (LVGL), which claims ... <cite>to be the most popular free and open-source embedded graphics library to create beautiful UIs for any MCU, MPU and display type.<cite>
+
 
 ## Hardware Setup
 
@@ -50,24 +59,24 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 3. **Copy** it into your project's top-level directory
 4. **Add this CMake snippet** to your `CMakeLists.txt`:
 
-```cmake
-# LVGL configuration
-message(NOTICE "===>>> LVGL configuration start ===")
+   ```cmake
+   # LVGL configuration
+   message(NOTICE "===>>> LVGL configuration start ===")
 
-set(LVGL_DIR_NAME lvgl)
-set(LVGL_DIR ${CMAKE_CURRENT_LIST_DIR})
-set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
-set(LV_CONF_INCLUDE_SIMPLE ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
+   set(LVGL_DIR_NAME lvgl)
+   set(LVGL_DIR ${CMAKE_CURRENT_LIST_DIR})
+   set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
+   set(LV_CONF_INCLUDE_SIMPLE ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
 
-message(NOTICE "LVGL folder name: ${LVGL_DIR_NAME}")
-message(NOTICE "Path to LVGL folder: ${LVGL_DIR}")
-message(NOTICE "Path to config file: ${LV_CONF_PATH}")
-message(NOTICE "Include path: ${LV_CONF_INCLUDE_SIMPLE}")
+   message(NOTICE "LVGL folder name: ${LVGL_DIR_NAME}")
+   message(NOTICE "Path to LVGL folder: ${LVGL_DIR}")
+   message(NOTICE "Path to config file: ${LV_CONF_PATH}")
+   message(NOTICE "Include path: ${LV_CONF_INCLUDE_SIMPLE}")
 
-add_subdirectory(${LVGL_DIR_NAME})
+   add_subdirectory(${LVGL_DIR_NAME})
 
-message(NOTICE "=== LVGL configuration end <<<===")
-```
+   message(NOTICE "=== LVGL configuration end <<<===")
+   ```
 
 5. **Configure LVGL**:
    - Copy `lv_conf_template.h` to your top-level directory
@@ -105,7 +114,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 }
 ```
 
-> `update_bgr()` is provided by the custom [`hub75`](https://github.com/JuPfu/hub75) driver.
+> `update_bgr()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75) driver.
 
 ### 3. Periodic Timer Handler Call
 
@@ -132,7 +141,7 @@ while (true)
 ## Dependencies
 
 * [LVGL](https://github.com/lvgl/lvgl)
-* [hub75](https://github.com/JuPfu/hub75) (custom optimized driver)
+* [hub75_lvgl](https://github.com/JuPfu/hub75_lvgl) (custom optimized driver)
 * CMake build system (standard for Pico SDK projects)
 
 ---
@@ -144,7 +153,7 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
 1. **Open VSCode and start a new window**.
 2. **Clone the repository**:
    - Press `Ctrl+Shift+P` and select `Git: Clone`.
-   - Paste the URL: `https://github.com/JuPfu/hub75`
+   - Paste the URL: `https://github.com/JuPfu/hub75_lvgl`
 
       <img src="assets/VSCode_1.png" width="460" height="116">
 
@@ -154,7 +163,7 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
 
 
 3. **Project Import Prompt**:
-   - Consent to open the project.
+   - Accept the prompt to open the project.
 
       <img src="assets/VSCode_3.png" width="603" height="400"> 
 
@@ -176,7 +185,7 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
 
 6. **Connect the Hardware**:
    - Make sure the HUB75 LED matrix is properly connected to the Raspberry Pi Pico.
-   - Attach the Rasberry Pi Pico USB cable to your computer
+   - Attach the Raspberry Pi Pico USB cable to your computer
 
 7. **Build and Upload**:
    - Compiling the project can be done without a Pico attached to the computer.
@@ -199,7 +208,11 @@ For any questions or discussions, feel free to contribute or open an issue!
 
 ## License
 
-MIT License (or your preferred license)
+[MIT License](https://github.com/JuPfu/hub75#MIT-1-ov-file)
 
 ---
+
+[![License](https://img.shields.io/github/license/JuPfu/hub75_lvgl)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi%20Pico-blue)]()
+[![LVGL](https://img.shields.io/badge/Graphics-LVGL-orange)](https://lvgl.io/)
 
