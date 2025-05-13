@@ -12,17 +12,17 @@
 class ImageAnimation
 {
 private:
-    static void image_animation_cb(void *var, int32_t v)
+    static inline void image_animation_cb(void *var, int32_t v)
     {
-        lv_image_set_rotation((lv_obj_t *)var, v);
+        lv_image_set_rotation(static_cast<lv_obj_t *>(var), v);
     }
 
-    static void image_animation_started_cb(lv_anim_t *a)
+    static inline void image_animation_started_cb(lv_anim_t *a)
     {
         // No-op for now
     }
 
-    static void image_animation_completed_cb(lv_anim_t *a)
+    static inline void image_animation_completed_cb(lv_anim_t *a)
     {
         ImageAnimation *self = static_cast<ImageAnimation *>(lv_anim_get_user_data(a));
         self->animation_done = true;
@@ -65,10 +65,10 @@ public:
         uint32_t duration_in_ms = lv_anim_speed_to_time(change_per_sec, 0, 3600);
         lv_anim_set_duration(&a, duration_in_ms);
 
-        lv_anim_set_repeat_count(&a, 1);
+        lv_anim_set_repeat_count(&a, 0);
         lv_anim_set_exec_cb(&a, static_cast<lv_anim_exec_xcb_t>(image_animation_cb));
-        lv_anim_set_completed_cb(&a, image_animation_completed_cb);
-        lv_anim_set_start_cb(&a, image_animation_started_cb);
+        lv_anim_set_completed_cb(&a, static_cast<lv_anim_completed_cb_t>(image_animation_completed_cb));
+        lv_anim_set_start_cb(&a, static_cast<lv_anim_start_cb_t>(image_animation_started_cb));
     }
 
     void start()
@@ -91,6 +91,11 @@ public:
     bool done() const
     {
         return animation_done;
+    }
+
+    void animation_init()
+    {
+        animation_done = false;
     }
 
     ~ImageAnimation()

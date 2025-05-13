@@ -39,8 +39,7 @@ static uint8_t buf1[RGB_MATRIX_WIDTH * RGB_MATRIX_WIDTH * BYTES_PER_PIXEL]; ///<
 
 static lv_display_t *display1; ///< LVGL display handle
 
-static bool load_anim = true;  ///< Flag to trigger animation setup
-static bool anim_done = false; ///< Flag to track image animation completion
+static bool load_anim = true; ///< Flag to trigger animation setup
 
 //--------------------------------------------------------------------------------
 // Utility Functions
@@ -105,7 +104,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
  */
 bool skip_to_next_demo(__unused struct repeating_timer *t)
 {
-    if (frame_index++ >= DEMO_COUNT)
+    if (frame_index++ >= DEMO_IMAGE)
         frame_index = DEMO_BOUNCE;
     load_anim = true;
     return true;
@@ -161,7 +160,6 @@ void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect,
         fireEffect.show();
         break;
     case DEMO_IMAGE:
-        anim_done = false;
         cancel_repeating_timer(&timer); // prevent premature transition
         imageAnimation.show();
         imageAnimation.start();
@@ -191,9 +189,9 @@ void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect
         fireEffect.burn();
         break;
     case DEMO_IMAGE:
-        if (!anim_done && imageAnimation.done())
+        if (imageAnimation.done())
         {
-            anim_done = true;
+            imageAnimation.animation_init();
             add_repeating_timer_ms(-15000, skip_to_next_demo, NULL, &timer);
         }
         break;
@@ -253,7 +251,7 @@ int main()
 
         update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, timer);
 
-        lv_timer_handler_run_in_period(frame_delay_ms);
-        sleep_ms(frame_delay_ms / 2);
+        lv_timer_handler();
+        sleep_ms(frame_delay_ms);
     }
 }
