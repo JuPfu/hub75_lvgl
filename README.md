@@ -93,7 +93,7 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ## Connecting LVGL to the HUB75 Driver
 
-To render LVGL output on the HUB75 panel, you need:
+To render LVGL output on the HUB75 panel, you need
 
 ### 1. Millisecond Tick Source
 
@@ -119,7 +119,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 }
 ```
 
-> `update_bgr()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75) driver.
+> `update_bgr()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75/blob/main/hub75.cpp) driver.
 
 
 ### 3. Choose LV_DISPLAY_RENDER_MODE_FULL
