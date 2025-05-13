@@ -58,7 +58,7 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
    * Rename it to `lv_conf.h`
    * Modify it to match your needs (use this project as reference)
 
-   Your directory structure should look simlar to this
+   Your directory structure should look similar to this
    ```bash
    lvgl/
    lv_conf.h
@@ -109,7 +109,7 @@ uint32_t get_milliseconds_since_boot()
 
 ### 2. Display Flush Callback
 
-Connects LVGL's draw buffer to the HUB75 display. The parameter *area is not used as LGVL is directed to always pass the complete buffer of the display [see Choose LV_DISPLAY_RENDER_MODE_FULL](#choose-lvdisplayrendermodefull).
+Connects LVGL's draw buffer to the HUB75 display. The parameter *area is not used as LGVL is directed to always pass the complete buffer of the display ([see Choose LV_DISPLAY_RENDER_MODE_FULL](#choose-lvdisplayrendermodefull)).
 
 ```c
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
