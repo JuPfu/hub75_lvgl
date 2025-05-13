@@ -17,16 +17,18 @@ This project currently demonstrates three animated demos:
 
 ## Project Goals and Focus
 
-The LED matrix driver used in this project is an evolution of [Pimoroni's HUB75 driver](https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75) which leans on [Raspberry Pi's pico-examples/pio/hub75](https://github.com/raspberrypi/pico-examples). It is an optimised driver which boosts performance through self-paced, interlinked DMA and PIO processes. The LED Matrix driver implementation is described in detail in [Hub75](https://github.com/JuPfu/hub75). The examples in this referenced project utilise [Pimoronis Pico Graphics library](https://github.com/pimoroni/pimoroni-pico/tree/main/libraries/pico_graphics) to show the capabilities of the LED matrix driver. Pimoronis Pico Graphics library is a tiny graphics library <cite>which supports drawing text, primitive and individual pixels and includes basic types such as Rect and Point brimming with methods to help you develop games and applications.</cite>
+The LED matrix driver used in this project is an evolution of [Pimoroni's HUB75 driver](https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75) which leans on [Raspberry Pi's pico-examples/pio/hub75](https://github.com/raspberrypi/pico-examples). It is an optimised driver which boosts performance through self-paced, interlinked DMA and PIO processes. The LED Matrix driver implementation is described in detail in [Hub75](https://github.com/JuPfu/hub75). In this referenced project the examples utilise [Pimoronis Pico Graphics library](https://github.com/pimoroni/pimoroni-pico/tree/main/libraries/pico_graphics) to show the capabilities of the LED matrix driver. `Pimoronis Pico Graphics library` is a tiny graphics library ...
+> which supports drawing text, primitive and individual pixels and includes basic types such as Rect and Point brimming with methods to help you develop games and applications.
 
-The goal of this project is to substitute Pimoronis Pico Graphics library with the **[Light and Versatile Graphics Library](https://lvgl.io/)** (LVGL), which claims ... <cite>to be the most popular free and open-source embedded graphics library to create beautiful UIs for any MCU, MPU and display type.<cite>
+The goal of this project is to substitute `Pimoronis Pico Graphics library` with the **[Light and Versatile Graphics Library](https://lvgl.io/)** (LVGL), which claims ... 
+> to be the most popular free and open-source embedded graphics library to create beautiful UIs for any MCU, MPU and display type.
 
 
 ## Hardware Setup
 
 - **Controller**: Raspberry Pi Pico (RP2040 or RP2040-compatible)
 - **Display**: 64×64 HUB75 RGB LED matrix panel  
-  > _Note: Other panel sizes can be supported with small adjustments._
+  > ⚠️ Other panel sizes can be supported with small adjustments
 - **Power**: External 5V supply for the LED matrix is required
 
 ---
@@ -34,18 +36,12 @@ The goal of this project is to substitute Pimoronis Pico Graphics library with t
 ## Core Distribution Diagram
 
 ```plaintext
-+------------------------+
-|        Core 0          |
-|                        |
-|  - LVGL                |
-|  - Demo Effects        |
-+------------------------+
-
-+------------------------+
-|        Core 1          |
-|                        |
-|  - HUB75 Driver        |
-+------------------------+
++----------------------+       +----------------------+
+|        Core 0        |       |        Core 1        |
+|                      |       |                      |
+|  - LVGL              |       |  - HUB75 Driver      |
+|  - Demo Effects      |       |                      |
++----------------------+       +----------------------+
 ```
 
 The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up **core 0** for LVGL rendering and animation logic.
@@ -57,7 +53,19 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 1. **Download** the latest version of [LVGL](https://github.com/lvgl/lvgl)
 2. **Extract** the zip and rename the folder to `lvgl`
 3. **Copy** it into your project's top-level directory
-4. **Add this CMake snippet** to your `CMakeLists.txt`:
+4. **Configure LVGL**
+   * Copy `lv_conf_template.h` to your top-level directory
+   * Rename it to `lv_conf.h`
+   * Modify it to match your needs (use this project as reference)
+
+   Your directory structure should look simlar to this
+   ```bash
+   lvgl/
+   lv_conf.h
+   other files and folders in your project, e.g. 
+   CMakeLists.txt
+   ```
+5. **Add this snippet** to your `CMakeLists.txt`
 
    ```cmake
    # LVGL configuration
@@ -78,10 +86,7 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
    message(NOTICE "=== LVGL configuration end <<<===")
    ```
 
-5. **Configure LVGL**:
-   - Copy `lv_conf_template.h` to your top-level directory
-   - Rename it to `lv_conf.h`
-   - Modify it to match your needs (use this project as reference)
+   See the projects `CMakeLists.txt` for details.
 6. Follow the [LVGL Integration Guide](https://docs.lvgl.io/master/details/integration/index.html)
 
 ---
@@ -104,7 +109,7 @@ uint32_t get_milliseconds_since_boot()
 
 ### 2. Display Flush Callback
 
-Connects LVGL's draw buffer to the HUB75 display:
+Connects LVGL's draw buffer to the HUB75 display. The parameter *area is not used as LGVL is directed to always pass the complete buffer of the display [see Choose LV_DISPLAY_RENDER_MODE_FULL](#choose-lvdisplayrendermodefull).
 
 ```c
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
@@ -116,9 +121,29 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 
 > `update_bgr()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75) driver.
 
-### 3. Periodic Timer Handler Call
 
-In your main loop, call:
+### 3. Choose LV_DISPLAY_RENDER_MODE_FULL
+
+With `LV_DISPLAY_RENDER_MODE_DIRECT` the buffer size must match the size of the display. LVGL will render into the correct location of the buffer. Using this method the buffer always contain the whole display image.
+
+```c
+    lv_init();
+    lv_tick_set_cb(get_milliseconds_since_boot);
+
+    display1 = lv_display_create(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
+    if (display1 == NULL)
+    {
+        printf("lv_display_create failed\n");
+        return -1;
+    }
+
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), 64 * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_flush_cb(display1, flush_cb);
+```
+
+### 4. Periodic Timer Handler Call
+
+In your main loop, call `lv_timer_handler()`
 
 ```c
 while (true)
@@ -131,7 +156,7 @@ while (true)
 
     update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, timer);
 
-    lv_timer_handler_run_in_period(frame_delay_ms);
+    lv_timer_handler();
     sleep_ms(frame_delay_ms / 2);
 }
 ```
