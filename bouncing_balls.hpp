@@ -108,6 +108,6 @@ public:
 
     void show()
     {
-        lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 1000, 0, false);
+        lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 2000, 0, false);
     }
 };
