@@ -25,17 +25,18 @@ private:
     static inline void image_animation_completed_cb(lv_anim_t *a)
     {
         ImageAnimation *self = static_cast<ImageAnimation *>(lv_anim_get_user_data(a));
-        self->animation_done = true;
+        self->done = true;
     }
 
     lv_obj_t *screen = nullptr;
     lv_obj_t *vanessa = nullptr;
+    lv_image_header_t header;
     lv_image_dsc_t img_desc;
 
     lv_anim_t a;
 
     uint width, height;
-    bool animation_done = false;
+    bool done = false;
 
 public:
     explicit ImageAnimation(uint width = 64, uint height = 64) : width(width), height(height)
@@ -44,12 +45,17 @@ public:
 
         vanessa = lv_image_create(screen);
 
+        header.magic = LV_IMAGE_HEADER_MAGIC;
+        header.w = width;
+        header.h = height;
+        header.cf = LV_COLOR_FORMAT_RGB888;
+        header.stride = width * BYTES_PER_PIXEL;
+        header.flags = 0x0;
+        header.reserved_2 = 0;
+
+        img_desc.header = header;
         img_desc.data_size = sizeof(vanessa_mai_64x64);
         img_desc.data = vanessa_mai_64x64;
-        img_desc.header.w = width;
-        img_desc.header.h = height;
-        img_desc.header.cf = LV_COLOR_FORMAT_RGB888;
-        img_desc.header.stride = width * BYTES_PER_PIXEL;
 
         lv_image_set_src(vanessa, &img_desc);
         lv_image_set_antialias(vanessa, true);
@@ -73,7 +79,7 @@ public:
 
     void start()
     {
-        animation_done = false; // Reset done state
+        done = false; // Reset done state
         if (vanessa)
         {
             lv_anim_start(&a);
@@ -84,18 +90,18 @@ public:
     {
         if (screen)
         {
-            lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_OUT_TOP, 1000, 0, false);
+            lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_OUT_TOP, 2000, 0, false);
         }
     }
 
-    bool done() const
+    bool animation_done() const
     {
-        return animation_done;
+        return done;
     }
 
     void animation_init()
     {
-        animation_done = false;
+        done = false;
     }
 
     ~ImageAnimation()
