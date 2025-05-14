@@ -137,7 +137,7 @@ With `LV_DISPLAY_RENDER_MODE_DIRECT` the buffer size must match the size of the 
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), 64 * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), RGB_MATRIX_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
 ```
 
@@ -157,7 +157,7 @@ while (true)
     update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, timer);
 
     lv_timer_handler();
-    sleep_ms(frame_delay_ms / 2);
+    sleep_ms(frame_delay_ms);
 }
 ```
 

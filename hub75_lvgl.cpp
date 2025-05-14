@@ -226,7 +226,7 @@ int main()
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), 64 * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), RGB_MATRIX_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
