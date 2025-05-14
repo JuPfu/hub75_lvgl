@@ -189,7 +189,7 @@ void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect
         fireEffect.burn();
         break;
     case DEMO_IMAGE:
-        if (imageAnimation.done())
+        if (imageAnimation.animation_done())
         {
             imageAnimation.animation_init();
             add_repeating_timer_ms(-15000, skip_to_next_demo, NULL, &timer);
@@ -231,7 +231,7 @@ int main()
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
     // The animated examples are updated at 60Hz.
-    const float fps = 60.0f;
+    const float fps = 120.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
     BouncingBalls bouncingBalls(15, RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
