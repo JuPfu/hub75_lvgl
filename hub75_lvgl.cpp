@@ -10,9 +10,10 @@
 #include "lvgl/src/display/lv_display.h"
 #include "lvgl/src/tick/lv_tick.h"
 
-#include "fire_effect.hpp"
 #include "bouncing_balls.hpp"
+#include "fire_effect.hpp"
 #include "image_animation.hpp"
+#include "colour_check.hpp"
 
 //--------------------------------------------------------------------------------
 // Constants and Globals
@@ -27,9 +28,11 @@
 /// @brief Enum for selecting animation demos
 enum DemoIndex
 {
+    // DEMO_CLOCK,
     DEMO_BOUNCE,
     DEMO_FIRE,
     DEMO_IMAGE,
+    DEMO_COLOUR,
     DEMO_COUNT
 };
 
@@ -104,7 +107,8 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
  */
 bool skip_to_next_demo(__unused struct repeating_timer *t)
 {
-    if (frame_index++ >= DEMO_IMAGE)
+    printf("skip_to_next_demo %d\n", frame_index);
+    if (frame_index++ >= DEMO_COLOUR)
         frame_index = DEMO_BOUNCE;
     load_anim = true;
     return true;
@@ -147,12 +151,17 @@ void initialize()
  * @param bouncingBalls Bouncing ball animation instance.
  * @param fireEffect Fire effect instance.
  * @param imageAnimation Image animation instance.
+ * @param colorCheck display colour squares
  * @param timer Reference to the demo-switching timer.
  */
-void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, struct repeating_timer &timer)
+void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, ColourCheck &colourCheck, struct repeating_timer &timer)
 {
     switch (index)
     {
+    // case DEMO_CLOCK:
+    //     printf("setup_demo DEMO_CLOCK\n");
+    //     flipClock.show();
+    //     break;
     case DEMO_BOUNCE:
         bouncingBalls.show();
         break;
@@ -163,6 +172,9 @@ void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect,
         cancel_repeating_timer(&timer); // prevent premature transition
         imageAnimation.show();
         imageAnimation.start();
+        break;
+    case DEMO_COLOUR:
+        colourCheck.show();
         break;
     }
 }
@@ -176,12 +188,17 @@ void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect,
  * @param bouncingBalls Bouncing ball animation instance.
  * @param fireEffect Fire effect instance.
  * @param imageAnimation Image animation instance.
+ * @param colorCheck display colour squares
  * @param timer Reference to the demo-switching timer.
  */
-void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, struct repeating_timer &timer)
+void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, ColourCheck &colourCheck, struct repeating_timer &timer)
 {
     switch (index)
     {
+    // case DEMO_CLOCK:
+    //     // printf("update_demo DEMO_CLOCK\n");
+    //     flipClock.tick();
+    //     break;
     case DEMO_BOUNCE:
         bouncingBalls.bounce();
         break;
@@ -192,8 +209,11 @@ void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect
         if (imageAnimation.animation_done())
         {
             imageAnimation.animation_init();
-            add_repeating_timer_ms(-15000, skip_to_next_demo, NULL, &timer);
+            add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
         }
+        break;
+    case DEMO_COLOUR:
+        colourCheck.colour_test();
         break;
     }
 }
@@ -237,19 +257,20 @@ int main()
     BouncingBalls bouncingBalls(15, RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
     FireEffect fireEffect(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
     ImageAnimation imageAnimation(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
+    ColourCheck colourCheck(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
 
     struct repeating_timer timer;
-    add_repeating_timer_ms(-15000, skip_to_next_demo, NULL, &timer);
+    add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
 
     while (true)
     {
         if (load_anim)
         {
             load_anim = false;
-            setup_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, timer);
+            setup_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, colourCheck, timer);
         }
 
-        update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, timer);
+        update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, colourCheck, timer);
 
         lv_timer_handler();
         sleep_ms(frame_delay_ms);

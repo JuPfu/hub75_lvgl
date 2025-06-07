@@ -70,6 +70,7 @@ target_sources(hub75_lvgl PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/bouncing_balls.cpp
         ${CMAKE_CURRENT_LIST_DIR}/fire_effect.cpp
         ${CMAKE_CURRENT_LIST_DIR}/image_animation.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/colour_check.cpp
         )
 
 # Add the standard include files to the build
