@@ -173,6 +173,8 @@ while (true)
 
 ## How to Use This Project in VSCode
 
+⚠️ The examples contained in hub75_lvgl.cpp have been tested with a Raspberry Pi Pico 2 microcontroller (RP2350). For a RP2040 processor you might have to comment out some demo effects due to minor memory capabilities. Ask if you need support 🙂.
+
 You can easily use this project with VSCode, especially with the **Raspberry Pi Pico plugin** installed. Follow these steps:
 
 1. **Open VSCode and start a new window**.
