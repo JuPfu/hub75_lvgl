@@ -13,6 +13,8 @@ This project currently demonstrates three animated demos:
 
 ✨ Transitions (fade or slide) are applied between demos.
 
+💡 At [reddit.com in the raspberrypipico group](https://www.reddit.com/r/raspberrypipico/comments/1kmegkv/lvgl_on_raspberry_pi_pico_driving_hub75_rgb_led/) a video shows the listed demo effects. The video is titled "LVGL on Raspberry Pi Pico driving HUB75 RGB LED Matrix".
+
 ---
 
 ## Project Goals and Focus
