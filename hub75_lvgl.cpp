@@ -25,10 +25,14 @@
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
 
+// PanelType - either PANEL_GENERIC or PANEL_FM6126A
+#define PANEL_TYPE PANEL_FM6126A
+// stb_inverted - either true (inverted) or false (default)
+#define STB_INVERTED false
+
 /// @brief Enum for selecting animation demos
 enum DemoIndex
 {
-    // DEMO_CLOCK,
     DEMO_BOUNCE,
     DEMO_FIRE,
     DEMO_IMAGE,
@@ -107,7 +111,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
  */
 bool skip_to_next_demo(__unused struct repeating_timer *t)
 {
-    printf("skip_to_next_demo %d\n", frame_index);
+    // printf("skip_to_next_demo %d\n", frame_index);
     if (frame_index++ >= DEMO_COLOUR)
         frame_index = DEMO_BOUNCE;
     load_anim = true;
@@ -121,7 +125,7 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
+    create_hub75_driver(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT, PANEL_GENERIC, STB_INVERTED);
     start_hub75_driver();
 }
 
@@ -158,10 +162,6 @@ void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect,
 {
     switch (index)
     {
-    // case DEMO_CLOCK:
-    //     printf("setup_demo DEMO_CLOCK\n");
-    //     flipClock.show();
-    //     break;
     case DEMO_BOUNCE:
         bouncingBalls.show();
         break;
@@ -195,10 +195,6 @@ void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect
 {
     switch (index)
     {
-    // case DEMO_CLOCK:
-    //     // printf("update_demo DEMO_CLOCK\n");
-    //     flipClock.tick();
-    //     break;
     case DEMO_BOUNCE:
         bouncingBalls.bounce();
         break;
@@ -250,7 +246,7 @@ int main()
     lv_display_set_flush_cb(display1, flush_cb);
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
-    // The animated examples are updated at 60Hz.
+    // The animated examples are updated at 120 Hz.
     const float fps = 120.0f;
     const float frame_delay_ms = 1000.0f / fps;
 

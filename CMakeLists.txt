@@ -82,7 +82,6 @@ target_include_directories(hub75_lvgl PRIVATE
 target_link_libraries(hub75_lvgl 
         pico_stdlib
         pico_multicore
-        pico_cyw43_arch_none
         hardware_pio
         hardware_dma
         hardware_timer

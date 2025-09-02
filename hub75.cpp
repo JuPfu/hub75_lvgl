@@ -1,6 +1,7 @@
-
-#include <cstdio>
 #include <cstdlib>
+
+#include "pico/stdlib.h"
+#include "pico/printf.h"
 
 #include "hub75.hpp"
 #include "hub75.pio.h"
@@ -48,7 +49,7 @@ volatile uint32_t *frame_buffer; ///< Interwoven image data for examples;
 static int claim_dma_channel(const char *channel_name);
 
 static void configure_dma_channels();
-static void configure_pio();
+static void configure_pio(bool);
 static void setup_dma_transfers();
 static void setup_dma_irq();
 
@@ -88,6 +89,9 @@ static PioConfig pio_config;
 static volatile uint32_t row_address = 0;
 static volatile uint32_t bit_plane = 0;
 static volatile uint32_t row_in_bit_plane = 0;
+
+const bool clk_polarity = 1;
+const bool stb_polarity = 1;
 
 /**
  * @brief Interrupt handler for the Output Enable (OEn) finished event.
@@ -137,6 +141,40 @@ void start_hub75_driver()
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
 }
 
+void FM6126A_write_register(uint16_t value, uint8_t position)
+{
+    gpio_put(CLK_PIN, !clk_polarity);
+    gpio_put(STROBE_PIN, !stb_polarity);
+
+    uint8_t threshold = width - position;
+    for (auto i = 0u; i < width; i++)
+    {
+        auto j = i % 16;
+        bool b = value & (1 << j);
+
+        gpio_put(DATA_BASE_PIN, b);
+        gpio_put((DATA_BASE_PIN + 1), b);
+        gpio_put((DATA_BASE_PIN + 2), b);
+        gpio_put((DATA_BASE_PIN + 3), b);
+        gpio_put((DATA_BASE_PIN + 4), b);
+        gpio_put((DATA_BASE_PIN + 5), b);
+
+        // Assert strobe/latch if i > threshold
+        // This somehow indicates to the FM6126A which register we want to write :|
+        gpio_put(STROBE_PIN, i > threshold);
+        gpio_put(CLK_PIN, clk_polarity);
+        sleep_us(10);
+        gpio_put(CLK_PIN, !clk_polarity);
+    }
+}
+
+void FM6126A_setup()
+{
+    // Ridiculous register write nonsense for the FM6126A-based 64x64 matrix
+    FM6126A_write_register(0b1111111111111110, 12);
+    FM6126A_write_register(0b0000001000000000, 13);
+}
+
 /**
  * @brief Initializes the HUB75 display by setting up DMA and PIO subsystems.
  *
@@ -147,7 +185,7 @@ void start_hub75_driver()
  * @param w Width of the HUB75 display in pixels.
  * @param h Height of the HUB75 display in pixels.
  */
-void create_hub75_driver(uint w, uint h)
+void create_hub75_driver(uint w, uint h, PanelType panel_type, bool inverted_stb)
 {
     width = w;
     height = h;
@@ -155,7 +193,12 @@ void create_hub75_driver(uint w, uint h)
 
     frame_buffer = new uint32_t[width * height](); // Allocate memory for frame buffer and zero-initialize
 
-    configure_pio();
+    if (panel_type == PANEL_FM6126A)
+    {
+        FM6126A_setup();
+    }
+
+    configure_pio(inverted_stb);
     configure_dma_channels();
     setup_dma_transfers();
     setup_dma_irq();
@@ -168,16 +211,28 @@ void create_hub75_driver(uint w, uint h)
  * pixel data and controlling row addressing. If a PIO state machine cannot
  * be claimed, it prints an error message.
  */
-static void configure_pio()
+static void configure_pio(bool inverted_stb)
 {
     if (!pio_claim_free_sm_and_add_program(&hub75_data_rgb888_program, &pio_config.data_pio, &pio_config.sm_data, &pio_config.data_prog_offs))
     {
         fprintf(stderr, "Failed to claim PIO state machine for hub75_data_rgb888_program\n");
     }
-    if (!pio_claim_free_sm_and_add_program(&hub75_row_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
+
+    if (inverted_stb)
     {
-        fprintf(stderr, "Failed to claim PIO state machine for hub75_row_program\n");
+        if (!pio_claim_free_sm_and_add_program(&hub75_row_inverted_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
+        {
+            fprintf(stderr, "Failed to claim PIO state machine for hub75_row_inverted_program\n");
+        }
     }
+    else
+    {
+        if (!pio_claim_free_sm_and_add_program(&hub75_row_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
+        {
+            fprintf(stderr, "Failed to claim PIO state machine for hub75_row_program\n");
+        }
+    }
+
     hub75_data_rgb888_program_init(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, DATA_BASE_PIN, CLK_PIN);
     hub75_row_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN);
 }
