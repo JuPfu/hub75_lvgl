@@ -111,7 +111,6 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
  */
 bool skip_to_next_demo(__unused struct repeating_timer *t)
 {
-    // printf("skip_to_next_demo %d\n", frame_index);
     if (frame_index++ >= DEMO_COLOUR)
         frame_index = DEMO_BOUNCE;
     load_anim = true;
@@ -125,7 +124,7 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT, PANEL_GENERIC, STB_INVERTED);
+    create_hub75_driver(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT, PANEL_TYPE, STB_INVERTED);
     start_hub75_driver();
 }
 
