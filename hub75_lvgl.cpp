@@ -19,9 +19,9 @@
 // Constants and Globals
 //--------------------------------------------------------------------------------
 
-#define RGB_MATRIX_WIDTH 64                               ///< Display width in pixels
-#define RGB_MATRIX_HEIGHT 64                              ///< Display height in pixels
-#define OFFSET RGB_MATRIX_WIDTH *(RGB_MATRIX_HEIGHT >> 1) ///< Mid-point index for symmetrical buffers
+#define MATRIX_PANEL_WIDTH 64                               ///< Display width in pixels
+#define MATRIX_PANEL_HEIGHT 64                              ///< Display height in pixels
+#define OFFSET RGB_MATRIX_WIDTH *(MATRIX_PANEL_HEIGHT >> 1) ///< Mid-point index for symmetrical buffers
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
 
@@ -42,7 +42,7 @@ enum DemoIndex
 
 static critical_section_t crit_sec = {0};                                   ///< Synchronization for safe time reading
 static int frame_index = DEMO_BOUNCE;                                       ///< Current demo index
-static uint8_t buf1[RGB_MATRIX_WIDTH * RGB_MATRIX_WIDTH * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
+static uint8_t buf1[MATRIX_PANEL_WIDTH * MATRIX_PANEL_WIDTH * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
 
@@ -124,7 +124,7 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT, PANEL_TYPE, STB_INVERTED);
+    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, STB_INVERTED);
     start_hub75_driver();
 }
 
@@ -234,14 +234,14 @@ int main()
     lv_init();
     lv_tick_set_cb(get_milliseconds_since_boot);
 
-    display1 = lv_display_create(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
+    display1 = lv_display_create(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
     if (display1 == NULL)
     {
         printf("lv_display_create failed\n");
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), RGB_MATRIX_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), MATRIX_PANEL_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
@@ -249,10 +249,10 @@ int main()
     const float fps = 120.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
-    BouncingBalls bouncingBalls(15, RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
-    FireEffect fireEffect(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
-    ImageAnimation imageAnimation(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
-    ColourCheck colourCheck(RGB_MATRIX_WIDTH, RGB_MATRIX_HEIGHT);
+    BouncingBalls bouncingBalls(15, MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
+    FireEffect fireEffect(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
+    ImageAnimation imageAnimation(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
+    ColourCheck colourCheck(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
 
     struct repeating_timer timer;
     add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
