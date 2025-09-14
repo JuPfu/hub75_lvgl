@@ -19,42 +19,50 @@
 
 #define EXIT_FAILURE 1
 
+// Scan rate 1 : 32 for a 64x64 matrix panel means 64 pixel height divided by 32 pixel results in 2 rows lit simultaneously.
+// Scan rate 1 : 16 for a 64x64 matrix panel means 64 pixel height divided by 16 pixel results in 4 rows lit simultaneously.
+// Scan rate 1 : 16 for a 64x32 matrix panel means 32 pixel height divided by 16 pixel results in 2 rows lit simultaneously.
+// Scan rate 1 : 8 for a 64x32 matrix panel means 32 pixel height divided by 8 pixel results in 4 rows lit simultaneously.
+// ...
+// Define either HUB75_MULTIPLEX_2_ROWS or HUB75_MULTIPLEX_2_ROWS to fit your matrix panel.
+
+#define HUB75_MULTIPLEX_2_ROWS // two rows lit simultaneously
+// #define HUB75_MULTIPLEX_2_ROWS   // four rows lit simultaneously
+
+#if !defined(HUB75_MULTIPLEX_2_ROWS) && !defined(HUB75_MULTIPLEX_2_ROWS)
+#error "You must define either HUB75_MULTIPLEX_2_ROWS or HUB75_MULTIPLEX_2_ROWS to match your panel's scan rate"
+#endif
+
 #define CIE_LUT
 
 #ifdef CIE_LUT
 
-#define LUT cie_lut
-
-// deduced from https://jared.geek.nz/2013/02/linear-led-pwm/
+// Deduced from https://jared.geek.nz/2013/02/linear-led-pwm/
 // The CIE 1931 lightness formula is what actually describes how we perceive light.
 
-static const uint16_t cie_lut[256] = {
-    0,    0,    1,    1,    2,    2,    3,    3,    4,    4,    4,    5,    5,    6,    6,    7,
-    7,    8,    8,    8,    9,    9,   10,   10,   11,   11,   12,   12,   13,   13,   14,   15,
-   15,   16,   17,   17,   18,   19,   19,   20,   21,   22,   22,   23,   24,   25,   26,   27,
-   28,   29,   30,   31,   32,   33,   34,   35,   36,   37,   38,   39,   40,   42,   43,   44,
-   45,   47,   48,   50,   51,   52,   54,   55,   57,   58,   60,   61,   63,   65,   66,   68,
-   70,   71,   73,   75,   77,   79,   81,   83,   84,   86,   88,   90,   93,   95,   97,   99,
-  101,  103,  106,  108,  110,  113,  115,  118,  120,  123,  125,  128,  130,  133,  136,  138,
-  141,  144,  147,  149,  152,  155,  158,  161,  164,  167,  171,  174,  177,  180,  183,  187,
-  190,  194,  197,  200,  204,  208,  211,  215,  218,  222,  226,  230,  234,  237,  241,  245,
-  249,  254,  258,  262,  266,  270,  275,  279,  283,  288,  292,  297,  301,  306,  311,  315,
-  320,  325,  330,  335,  340,  345,  350,  355,  360,  365,  370,  376,  381,  386,  392,  397,
-  403,  408,  414,  420,  425,  431,  437,  443,  449,  455,  461,  467,  473,  480,  486,  492,
-  499,  505,  512,  518,  525,  532,  538,  545,  552,  559,  566,  573,  580,  587,  594,  601,
-  609,  616,  624,  631,  639,  646,  654,  662,  669,  677,  685,  693,  701,  709,  717,  726,
-  734,  742,  751,  759,  768,  776,  785,  794,  802,  811,  820,  829,  838,  847,  857,  866,
-  875,  885,  894,  903,  913,  923,  932,  942,  952,  962,  972,  982,  992, 1002, 1013, 1023,
-};
-
+static const uint16_t lut[256] = {
+    0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7,
+    7, 8, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15,
+    15, 16, 17, 17, 18, 19, 19, 20, 21, 22, 22, 23, 24, 25, 26, 27,
+    28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44,
+    45, 47, 48, 50, 51, 52, 54, 55, 57, 58, 60, 61, 63, 65, 66, 68,
+    70, 71, 73, 75, 77, 79, 81, 83, 84, 86, 88, 90, 93, 95, 97, 99,
+    101, 103, 106, 108, 110, 113, 115, 118, 120, 123, 125, 128, 130, 133, 136, 138,
+    141, 144, 147, 149, 152, 155, 158, 161, 164, 167, 171, 174, 177, 180, 183, 187,
+    190, 194, 197, 200, 204, 208, 211, 215, 218, 222, 226, 230, 234, 237, 241, 245,
+    249, 254, 258, 262, 266, 270, 275, 279, 283, 288, 292, 297, 301, 306, 311, 315,
+    320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370, 376, 381, 386, 392, 397,
+    403, 408, 414, 420, 425, 431, 437, 443, 449, 455, 461, 467, 473, 480, 486, 492,
+    499, 505, 512, 518, 525, 532, 538, 545, 552, 559, 566, 573, 580, 587, 594, 601,
+    609, 616, 624, 631, 639, 646, 654, 662, 669, 677, 685, 693, 701, 709, 717, 726,
+    734, 742, 751, 759, 768, 776, 785, 794, 802, 811, 820, 829, 838, 847, 857, 866,
+    875, 885, 894, 903, 913, 923, 932, 942, 952, 962, 972, 982, 992, 1002, 1013, 1023};
 #else
-
-#define LUT gamma_lut
 
 // This gamma table is used to correct 8-bit (0-255) colours up to 10-bit, applying gamma correction without losing dynamic range.
 // The gamma table is from pimeroni's https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75.
 
-static const uint16_t gamma_lut[256] = {
+static const uint16_t lut[256] = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -507,16 +515,16 @@ static inline int claim_dma_channel(const char *channel_name)
  *
  * @param src Pointer to the source pixel data array (RGB888 format).
  */
-void update(uint8_t *src)
+void update(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
     uint k = 0;
-    // Ramp up color resolution from 8 to 10 bits via gamma table look-up
+    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
     // Interweave pixels as required by Hub75 LED panel matrix
     for (int j = 0; j < width * height; j += 2)
     {
-        frame_buffer[j] = LUT[src[k + 2]] << 20 | LUT[src[k + 1]] << 10 | LUT[src[k]];
-        frame_buffer[j + 1] = LUT[src[rgb_offset + k + 2]] << 20 | LUT[src[rgb_offset + k + 1]] << 10 | LUT[src[rgb_offset + k]];
+        frame_buffer[j] = lut[src[k + 2]] << 20 | lut[src[k + 1]] << 10 | lut[src[k]];
+        frame_buffer[j + 1] = lut[src[rgb_offset + k + 2]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k]];
         k += 3;
     }
 }
@@ -529,18 +537,30 @@ void update(uint8_t *src)
  *
  * @param src Pointer to the source pixel data array (BGR888 format).
  */
-void update_bgr(uint8_t *src)
+void update_bgr(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
     uint k = 0;
-    // Ramp up color resolution from 8 to 10 bits via gamma table look-up
+    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
     // Interweave pixels as required by Hub75 LED panel matrix
+
+#ifdef HUB75_MULTIPLEX_2_ROWS
     for (int j = 0; j < width * height; j += 2)
     {
-        frame_buffer[j] = LUT[src[k]] << 20 | LUT[src[k + 1]] << 10 | LUT[src[k + 2]];
-        frame_buffer[j + 1] = LUT[src[rgb_offset + k]] << 20 | LUT[src[rgb_offset + k + 1]] << 10 | LUT[src[rgb_offset + k + 2]];
+        frame_buffer[j] = lut[src[k]] << 20 | lut[src[k + 1]] << 10 | lut[src[k + 2]];
+        frame_buffer[j + 1] = lut[src[rgb_offset + k]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k + 2]];
         k += 3;
     }
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    for (int j = 0; j < width * height; j += 4)
+    {
+        frame_buffer[j] = lut[src[k]] << 20 | lut[src[k + 1]] << 10 | lut[src[k + 2]];
+        frame_buffer[j + 1] = lut[src[rgb_offset + k]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k + 2]];
+        frame_buffer[j + 2] = lut[src[2 * rgb_offset + k]] << 20 | lut[src[2 * rgb_offset + k + 1]] << 10 | lut[src[2 * rgb_offset + k + 2]];
+        frame_buffer[j + 3] = lut[src[3 * rgb_offset + k]] << 20 | lut[src[3 * rgb_offset + k + 1]] << 10 | lut[src[3 * rgb_offset + k + 2]];
+        k += 3;
+    }
+#endif
 }
 /**
  * @brief Update a portion of the framebuffer with pixels from LVGL (BGR888).
@@ -554,8 +574,11 @@ void update_bgr(uint8_t *src)
  */
 void update_area_bgr(const uint8_t *src, const uint32_t x1, const uint32_t y1, const uint32_t x2, const uint32_t y2)
 {
+    uint rgb_offset = offset * 3;
+
     for (int y = y1; y <= y2; ++y)
     {
+#ifdef HUB75_MULTIPLEX_2_ROWS
         for (int x = x1; x <= x2; x += 2)
         {
             // LVGL sends BGR for each pixel, tightly packed.
@@ -567,18 +590,60 @@ void update_area_bgr(const uint8_t *src, const uint32_t x1, const uint32_t y1, c
 
             // First pixel (x)
             frame_buffer[j] =
-                LUT[src[k]] << 20 |     // B -> R channel
-                LUT[src[k + 1]] << 10 | // G
-                LUT[src[k + 2]];        // R -> B channel
+                lut[src[k]] << 20 |     // B -> R channel
+                lut[src[k + 1]] << 10 | // G
+                lut[src[k + 2]];        // R -> B channel
 
             // Second pixel (x+1), make sure we don’t overflow
             if (x + 1 <= x2)
             {
                 frame_buffer[j + 1] =
-                    LUT[src[k + 3]] << 20 |
-                    LUT[src[k + 4]] << 10 |
-                    LUT[src[k + 5]];
+                    lut[src[rgb_offset + k]] << 20 |
+                    lut[src[rgb_offset + k + 1]] << 10 |
+                    lut[src[rgb_offset + k + 2]];
             }
         }
+#elif defined HUB75_MULTIPLEX_4_ROWS
+        for (int x = x1; x <= x2; x += 4)
+        {
+            // LVGL sends BGR for each pixel, tightly packed.
+            int pixel_idx = (y - y1) * (x2 - x1 + 1) + (x - x1); // index in `src`
+            int k = pixel_idx * 3;
+
+            // Calculate the framebuffer offset (adjust for interleaving if needed)
+            int j = y * width + x;
+
+            // First pixel (x)
+            frame_buffer[j] =
+                lut[src[k]] << 20 |     // B -> R channel
+                lut[src[k + 1]] << 10 | // G
+                lut[src[k + 2]];        // R -> B channel
+
+            // Second pixel (x+1), make sure we don’t overflow
+            if (x + 1 <= x2)
+            {
+                frame_buffer[j + 1] =
+                    lut[src[rgb_offset + k]] << 20 |
+                    lut[src[rgb_offset + k + 1]] << 10 |
+                    lut[src[rgb_offset + k + 2]];
+            }
+            // Third pixel (x+2), make sure we don’t overflow
+            if (x + 2 <= x2)
+            {
+                frame_buffer[j + 1] =
+                    lut[src[2 * rgb_offset + k]] << 20 |
+                    lut[src[2 * rgb_offset + k + 1]] << 10 |
+                    lut[src[2 * rgb_offset + k + 2]];
+            }
+            // Fourth pixel (x+3), make sure we don’t overflow
+            if (x + 3 <= x2)
+            {
+                frame_buffer[j + 1] =
+                    lut[src[3 * rgb_offset + k]] << 20 |
+                    lut[src[3 * rgb_offset + k + 1]] << 10 |
+                    lut[src[3 * rgb_offset + k + 2]];
+            }
+        }
+#endif
     }
 }

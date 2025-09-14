@@ -5,7 +5,7 @@
 enum PanelType
 {
     PANEL_GENERIC = 0,
-    PANEL_FM6126A,
+    PANEL_FM6126A
 };
 
 void setBasisBrightness(uint8_t factor);
@@ -13,6 +13,6 @@ void setIntensity(float intensity);
 
 void create_hub75_driver(uint w, uint h, PanelType panel_type, bool stb_inverted);
 void start_hub75_driver();
-void update_bgr(uint8_t *src);
+void update_bgr(const uint8_t *src);
 
-void update(uint8_t *src);
+void update(const uint8_t *src);
