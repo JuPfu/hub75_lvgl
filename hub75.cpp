@@ -521,12 +521,23 @@ void update(const uint8_t *src)
     uint k = 0;
     // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
     // Interweave pixels as required by Hub75 LED panel matrix
+#ifdef HUB75_MULTIPLEX_2_ROWS
     for (int j = 0; j < width * height; j += 2)
     {
         frame_buffer[j] = lut[src[k + 2]] << 20 | lut[src[k + 1]] << 10 | lut[src[k]];
         frame_buffer[j + 1] = lut[src[rgb_offset + k + 2]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k]];
         k += 3;
     }
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    for (int j = 0; j < width * height; j += 4)
+    {
+        frame_buffer[j] = lut[src[k + 2]] << 20 | lut[src[k + 1]] << 10 | lut[src[k]];
+        frame_buffer[j + 1] = lut[src[rgb_offset + k + 2]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k]];
+        frame_buffer[j + 2] = lut[src[2 * rgb_offset + k + 2]] << 20 | lut[src[2 * rgb_offset + k + 1]] << 10 | lut[src[2 * rgb_offset + k]];
+        frame_buffer[j + 3] = lut[src[3 * rgb_offset + k + 2]] << 20 | lut[src[3 * rgb_offset + k + 1]] << 10 | lut[src[3 * rgb_offset + k]];
+        k += 3;
+    }
+#endif
 }
 
 /**
