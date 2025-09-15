@@ -343,7 +343,11 @@ void create_hub75_driver(uint w, uint h, PanelType panel_type, bool inverted_stb
 {
     width = w;
     height = h;
+#ifdef HUB75_MULTIPLEX_2_ROWS
     offset = width * (height >> 1);
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    offset = width * (height >> 2);
+#endif
 
     frame_buffer = new uint32_t[width * height](); // Allocate memory for frame buffer and zero-initialize
 
