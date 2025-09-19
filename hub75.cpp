@@ -135,7 +135,7 @@ static volatile uint32_t bit_plane = 0;
 static volatile uint32_t row_in_bit_plane = 0;
 
 // Choose accumulator precision: >= 10. 16 is a good default.
-#define ACC_BITS   16
+#define ACC_BITS   18
 
 // Derived constants
 static const int ACC_SHIFT = (ACC_BITS - 10); // number of low bits preserved in accumulator
