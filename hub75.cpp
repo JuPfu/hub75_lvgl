@@ -563,7 +563,8 @@ inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
  * @brief Updates the frame buffer with pixel data from the source array.
  *
  * This function takes a source array of pixel data and updates the frame buffer
- * with interleaved pixel values. The pixel values are gamma-corrected to 10 bits using a lookup table.
+ * with interleaved pixel values. The pixel values are cie luminance / gamma-corrected to 10 bits using a lookup table.
+ * Dithering is applied before the pixel data is output to the matrix panel.
  *
  * @param src Pointer to the source pixel data array (RGB888 format).
  */
@@ -591,7 +592,15 @@ void update(const uint8_t *src) {
 #endif
 }
 
-// --- Update full frame (BGR order) ---
+/**
+ * @brief Updates the frame buffer with pixel data from the source array.
+ *
+ * This function takes a source array of pixel data and updates the frame buffer
+ * with interleaved pixel values. The pixel values are cie luminance / gamma-corrected to 10 bits using a lookup table.
+ * Dithering is applied before the pixel data is output to the matrix panel.
+ *
+ * @param src Pointer to the source pixel data array (RGB888 format).
+ */
 void update_bgr(const uint8_t *src) {
     uint rgb_offset = offset * 3;
     uint k = 0;
@@ -614,7 +623,16 @@ void update_bgr(const uint8_t *src) {
 #endif
 }
 
-// --- Update partial area (LVGL flush callback) ---
+/**
+ * @brief Update a portion of the framebuffer with pixels from LVGL (BGR888).
+ *
+ * This function updates only the rectangular area defined by the coordinates in `area`.
+ * It assumes the source data `src` is in BGR888 format, row-major, and interleaved
+ * as LVGL provides for a flush area.
+ *
+ * @param src Pointer to pixel data in BGR888 format.
+ * @param area Area to update in the display coordinate space.
+ */
 void update_area_bgr(const uint8_t *src, int x1, int y1, int x2, int y2) {
     int w = (x2 - x1 + 1);
     int h = (y2 - y1 + 1);
