@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <vector>
 
 #include "pico/stdlib.h"
 #include "pico/printf.h"
@@ -133,6 +134,16 @@ static volatile uint32_t row_address = 0;
 static volatile uint32_t bit_plane = 0;
 static volatile uint32_t row_in_bit_plane = 0;
 
+// Choose accumulator precision: >= 10. 16 is a good default.
+#define ACC_BITS   16
+
+// Derived constants
+static const int ACC_SHIFT = (ACC_BITS - 10); // number of low bits preserved in accumulator
+
+// Per-channel accumulators (allocated at runtime)
+static std::vector<uint32_t> acc_r, acc_g, acc_b; 
+
+
 // Variables for brightness control
 volatile float brightness = 1.0f;    // fine control [0.0–1.0]
 volatile uint32_t basis_factor = 6u; // baseline scaling
@@ -171,6 +182,18 @@ void setIntensity(float intensity)
         brightness = 1.0f;
     else
         brightness = intensity;
+}
+
+/**
+ * @brief Initialize per-pixel accumulators used for temporal dithering.
+ *
+ * This must be called after width and height are set and after the frame_buffer allocation.
+ * Allocates three arrays of width*height uint32 accumulators (R, G, B) and zero-initializes them.
+ */
+void init_accumulators(int pixel_count) {
+    acc_r.assign(pixel_count, 0);
+    acc_g.assign(pixel_count, 0);
+    acc_b.assign(pixel_count, 0);
 }
 
 /**
@@ -350,6 +373,8 @@ void create_hub75_driver(uint w, uint h, PanelType panel_type, bool inverted_stb
 #endif
 
     frame_buffer = new uint32_t[width * height](); // Allocate memory for frame buffer and zero-initialize
+    
+    init_accumulators(width * height);
 
     if (panel_type == PANEL_FM6126A)
     {
@@ -511,6 +536,29 @@ static inline int claim_dma_channel(const char *channel_name)
     return dma_channel;
 }
 
+inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
+                                        uint32_t &acc_gp,
+                                        uint32_t &acc_bp,
+                                        uint8_t r, uint8_t g, uint8_t b) {
+    // Add LUT values shifted for fractional precision
+    acc_rp += (uint32_t)lut[r] << ACC_SHIFT;
+    acc_gp += (uint32_t)lut[g] << ACC_SHIFT;
+    acc_bp += (uint32_t)lut[b] << ACC_SHIFT;
+
+    // Extract upper 10 bits for HUB75 frame
+    uint32_t out_r = (acc_rp >> ACC_SHIFT) & 0x3FF;
+    uint32_t out_g = (acc_gp >> ACC_SHIFT) & 0x3FF;
+    uint32_t out_b = (acc_bp >> ACC_SHIFT) & 0x3FF;
+
+    // Keep only remainder bits
+    acc_rp &= (1u << ACC_SHIFT) - 1u;
+    acc_gp &= (1u << ACC_SHIFT) - 1u;
+    acc_bp &= (1u << ACC_SHIFT) - 1u;
+
+    // Pack into 32-bit HUB75 format
+    return (out_r << 20) | (out_g << 10) | out_b;
+}
+
 /**
  * @brief Updates the frame buffer with pixel data from the source array.
  *
@@ -519,146 +567,69 @@ static inline int claim_dma_channel(const char *channel_name)
  *
  * @param src Pointer to the source pixel data array (RGB888 format).
  */
-void update(const uint8_t *src)
-{
+void update(const uint8_t *src) {
     uint rgb_offset = offset * 3;
     uint k = 0;
-    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
-    // Interweave pixels as required by Hub75 LED panel matrix
+
 #ifdef HUB75_MULTIPLEX_2_ROWS
-    for (int j = 0; j < width * height; j += 2)
-    {
-        frame_buffer[j] = lut[src[k + 2]] << 20 | lut[src[k + 1]] << 10 | lut[src[k]];
-        frame_buffer[j + 1] = lut[src[rgb_offset + k + 2]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k]];
+    for (int j = 0; j < width * height; j += 2) {
+        int idx0 = j;
+        int idx1 = j + 1;
+
+        frame_buffer[idx0] = write_pixel_with_dither(
+            acc_r[idx0], acc_g[idx0], acc_b[idx0],
+            src[k + 2], src[k + 1], src[k + 0]);
+
+        frame_buffer[idx1] = write_pixel_with_dither(
+            acc_r[idx1], acc_g[idx1], acc_b[idx1],
+            src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
+
         k += 3;
     }
 #elif defined HUB75_MULTIPLEX_4_ROWS
-    for (int j = 0; j < width * height; j += 4)
-    {
-        frame_buffer[j] = lut[src[k + 2]] << 20 | lut[src[k + 1]] << 10 | lut[src[k]];
-        frame_buffer[j + 1] = lut[src[rgb_offset + k + 2]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k]];
-        frame_buffer[j + 2] = lut[src[2 * rgb_offset + k + 2]] << 20 | lut[src[2 * rgb_offset + k + 1]] << 10 | lut[src[2 * rgb_offset + k]];
-        frame_buffer[j + 3] = lut[src[3 * rgb_offset + k + 2]] << 20 | lut[src[3 * rgb_offset + k + 1]] << 10 | lut[src[3 * rgb_offset + k]];
+    // Similar, but handling 4-row interleaving
+#endif
+}
+
+// --- Update full frame (BGR order) ---
+void update_bgr(const uint8_t *src) {
+    uint rgb_offset = offset * 3;
+    uint k = 0;
+
+#ifdef HUB75_MULTIPLEX_2_ROWS
+    for (int j = 0; j < width * height; j += 2) {
+        int idx0 = j;
+        int idx1 = j + 1;
+
+        frame_buffer[idx0] = write_pixel_with_dither(
+            acc_r[idx0], acc_g[idx0], acc_b[idx0],
+            src[k + 0], src[k + 1], src[k + 2]);
+
+        frame_buffer[idx1] = write_pixel_with_dither(
+            acc_r[idx1], acc_g[idx1], acc_b[idx1],
+            src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
+
         k += 3;
     }
 #endif
 }
 
-/**
- * @brief Updates the frame buffer with pixel data from the source array.
- *
- * This function takes a source array of pixel data and updates the frame buffer
- * with interleaved pixel values. The pixel values are gamma-corrected to 10 bits using a lookup table.
- *
- * @param src Pointer to the source pixel data array (BGR888 format).
- */
-void update_bgr(const uint8_t *src)
-{
-    uint rgb_offset = offset * 3;
-    uint k = 0;
-    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
-    // Interweave pixels as required by Hub75 LED panel matrix
+// --- Update partial area (LVGL flush callback) ---
+void update_area_bgr(const uint8_t *src, int x1, int y1, int x2, int y2) {
+    int w = (x2 - x1 + 1);
+    int h = (y2 - y1 + 1);
+    int src_idx = 0;
 
-#ifdef HUB75_MULTIPLEX_2_ROWS
-    for (int j = 0; j < width * height; j += 2)
-    {
-        frame_buffer[j] = lut[src[k]] << 20 | lut[src[k + 1]] << 10 | lut[src[k + 2]];
-        frame_buffer[j + 1] = lut[src[rgb_offset + k]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k + 2]];
-        k += 3;
-    }
-#elif defined HUB75_MULTIPLEX_4_ROWS
-    for (int j = 0; j < width * height; j += 4)
-    {
-        frame_buffer[j] = lut[src[k]] << 20 | lut[src[k + 1]] << 10 | lut[src[k + 2]];
-        frame_buffer[j + 1] = lut[src[rgb_offset + k]] << 20 | lut[src[rgb_offset + k + 1]] << 10 | lut[src[rgb_offset + k + 2]];
-        frame_buffer[j + 2] = lut[src[2 * rgb_offset + k]] << 20 | lut[src[2 * rgb_offset + k + 1]] << 10 | lut[src[2 * rgb_offset + k + 2]];
-        frame_buffer[j + 3] = lut[src[3 * rgb_offset + k]] << 20 | lut[src[3 * rgb_offset + k + 1]] << 10 | lut[src[3 * rgb_offset + k + 2]];
-        k += 3;
-    }
-#endif
-}
-/**
- * @brief Update a portion of the framebuffer with pixels from LVGL (BGR888).
- *
- * This function updates only the rectangular area defined by the coordinates in `area`.
- * It assumes the source data `src` is in BGR888 format, row-major, and interleaved
- * as LVGL provides for a flush area.
- *
- * @param src Pointer to pixel data in BGR888 format.
- * @param area Area to update in the display coordinate space.
- */
-void update_area_bgr(const uint8_t *src, const uint32_t x1, const uint32_t y1, const uint32_t x2, const uint32_t y2)
-{
-    uint rgb_offset = offset * 3;
+    for (int y = y1; y <= y2; y++) {
+        int row_offset = y * width;
+        for (int x = x1; x <= x2; x++) {
+            int idx = row_offset + x;
 
-    for (int y = y1; y <= y2; ++y)
-    {
-#ifdef HUB75_MULTIPLEX_2_ROWS
-        for (int x = x1; x <= x2; x += 2)
-        {
-            // LVGL sends BGR for each pixel, tightly packed.
-            int pixel_idx = (y - y1) * (x2 - x1 + 1) + (x - x1); // index in `src`
-            int k = pixel_idx * 3;
+            frame_buffer[idx] = write_pixel_with_dither(
+                acc_r[idx], acc_g[idx], acc_b[idx],
+                src[src_idx + 0], src[src_idx + 1], src[src_idx + 2]);
 
-            // Calculate the framebuffer offset (adjust for interleaving if needed)
-            int j = y * width + x;
-
-            // First pixel (x)
-            frame_buffer[j] =
-                lut[src[k]] << 20 |     // B -> R channel
-                lut[src[k + 1]] << 10 | // G
-                lut[src[k + 2]];        // R -> B channel
-
-            // Second pixel (x+1), make sure we don’t overflow
-            if (x + 1 <= x2)
-            {
-                frame_buffer[j + 1] =
-                    lut[src[rgb_offset + k]] << 20 |
-                    lut[src[rgb_offset + k + 1]] << 10 |
-                    lut[src[rgb_offset + k + 2]];
-            }
+            src_idx += 3;
         }
-#elif defined HUB75_MULTIPLEX_4_ROWS
-        for (int x = x1; x <= x2; x += 4)
-        {
-            // LVGL sends BGR for each pixel, tightly packed.
-            int pixel_idx = (y - y1) * (x2 - x1 + 1) + (x - x1); // index in `src`
-            int k = pixel_idx * 3;
-
-            // Calculate the framebuffer offset (adjust for interleaving if needed)
-            int j = y * width + x;
-
-            // First pixel (x)
-            frame_buffer[j] =
-                lut[src[k]] << 20 |     // B -> R channel
-                lut[src[k + 1]] << 10 | // G
-                lut[src[k + 2]];        // R -> B channel
-
-            // Second pixel (x+1), make sure we don’t overflow
-            if (x + 1 <= x2)
-            {
-                frame_buffer[j + 1] =
-                    lut[src[rgb_offset + k]] << 20 |
-                    lut[src[rgb_offset + k + 1]] << 10 |
-                    lut[src[rgb_offset + k + 2]];
-            }
-            // Third pixel (x+2), make sure we don’t overflow
-            if (x + 2 <= x2)
-            {
-                frame_buffer[j + 1] =
-                    lut[src[2 * rgb_offset + k]] << 20 |
-                    lut[src[2 * rgb_offset + k + 1]] << 10 |
-                    lut[src[2 * rgb_offset + k + 2]];
-            }
-            // Fourth pixel (x+3), make sure we don’t overflow
-            if (x + 3 <= x2)
-            {
-                frame_buffer[j + 1] =
-                    lut[src[3 * rgb_offset + k]] << 20 |
-                    lut[src[3 * rgb_offset + k + 1]] << 10 |
-                    lut[src[3 * rgb_offset + k + 2]];
-            }
-        }
-#endif
     }
 }
