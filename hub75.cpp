@@ -545,12 +545,11 @@ inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
 void update(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
-    uint k = 0;
     // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
     // Interweave pixels as required by Hub75 LED panel matrix
 
 #ifdef HUB75_MULTIPLEX_2_ROWS
-    for (int j = 0; j < width * height; j += 2)
+    for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
         frame_buffer[j] = write_pixel_with_dither(
             acc_r[j], acc_g[j], acc_b[j],
@@ -559,37 +558,38 @@ void update(const uint8_t *src)
         frame_buffer[j + 1] = write_pixel_with_dither(
             acc_r[j + 1], acc_g[j + 1], acc_b[j + 1],
             src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
-
-        k += 3;
     }
 #elif defined HUB75_MULTIPLEX_4_ROWS
-    for (int j = 0; j < width * height; j += 4)
+    for (int j = 0, k = 0; j < width * height; j += 4, k += 3)
     {
+        size_t k0 = k;
+        size_t k1 = k0 + rgb_offset;
+        size_t k2 = k1 + rgb_offset;
+        size_t k3 = k2 + rgb_offset;
+
         int idx = j;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[k + 2], src[k + 1], src[k + 0]);
+            src[k0 + 2], src[k0 + 1], src[k0 + 0]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
+            src[k1 + 2], src[k1 + 1], src[k1 + 0]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[2 * rgb_offset + k + 2], src[2 * rgb_offset + k + 1], src[2 * rgb_offset + k + 0]);
+            src[k2 + 2], src[k2 + 1], src[k2 + 0]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[2 * rgb_offset + k + 2], src[2 * rgb_offset + k + 1], src[2 * rgb_offset + k + 0]);
-
-        k += 3;
+            src[k3 + 2], src[k3 + 1], src[k3 + 0]);
     }
 #endif
 }
@@ -606,12 +606,11 @@ void update(const uint8_t *src)
 void update_bgr(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
-    uint k = 0;
     // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
     // Interweave pixels as required by Hub75 LED panel matrix
 
 #ifdef HUB75_MULTIPLEX_2_ROWS
-    for (int j = 0; j < width * height; j += 2)
+    for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
         int idx = j;
 
@@ -624,36 +623,38 @@ void update_bgr(const uint8_t *src)
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
-
-        k += 3;
     }
 #elif defined HUB75_MULTIPLEX_4_ROWS
-    for (int j = 0; j < width * height; j += 4)
+    for (int j = 0, k = 0; j < width * height; j += 4, k += 3)
     {
+        size_t k0 = k;
+        size_t k1 = k0 + offset;
+        size_t k2 = k1 + offset;
+        size_t k3 = k2 + offset;
+
         int idx = j;
 
-        frame_buffer[idx0] = write_pixel_with_dither(
-            acc_r[idx0], acc_g[idx0], acc_b[idx0],
-            src[k + 0], src[k + 1], src[k + 2]);
+        frame_buffer[idx] = write_pixel_with_dither(
+            acc_r[idx], acc_g[idx], acc_b[idx],
+            src[k0 + 0], src[k0 + 1], src[k0 + 2]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
+            src[k1 + 0], src[k1 + 1], src[k1 + 2]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[2 * rgb_offset + k + 0], src[2 * rgb_offset + k + 1], src[2 * rgb_offset + k + 2]);
+            src[k2 + 0], src[k2 + 1], src[k2 + 2]);
 
         idx++;
 
         frame_buffer[idx] = write_pixel_with_dither(
             acc_r[idx], acc_g[idx], acc_b[idx],
-            src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
-        k += 3;
+            src[k3 + 0], src[k3 + 1], src[k3 + 2]);
     }
 #endif
 }
@@ -691,6 +692,6 @@ void update_area_bgr(const uint8_t *src, int x1, int y1, int x2, int y2)
     }
     // in progress
 #elif defined HUB75_MULTIPLEX_4_ROWS
-    // to be done
+        // to be done
 #endif
 }
