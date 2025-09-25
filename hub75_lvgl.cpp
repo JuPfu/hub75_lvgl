@@ -25,9 +25,9 @@
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
 
-// Panel type FM6126A receives some initial incantation sequence. 
-// This should usually have no effect on generic matrix panels. 
-// You might see a short lighting of some leds for generic panels. 
+// Panel type FM6126A receives some initial incantation sequence.
+// This should usually have no effect on generic matrix panels.
+// You might see a short lighting of some leds for generic panels.
 // To suppress this effect set PANEL_TYPE to PANEL_GENERIC.
 
 // PanelType - either PANEL_GENERIC or PANEL_FM6126A
