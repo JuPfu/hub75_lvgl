@@ -20,6 +20,8 @@
 
 #define EXIT_FAILURE 1
 
+#define TEMPORAL_DITHERING // use temporal dithering - remove define to use no dithering
+
 // Scan rate 1 : 32 for a 64x64 matrix panel means 64 pixel height divided by 32 pixel results in 2 rows lit simultaneously.
 // Scan rate 1 : 16 for a 64x64 matrix panel means 64 pixel height divided by 16 pixel results in 4 rows lit simultaneously.
 // Scan rate 1 : 16 for a 64x32 matrix panel means 32 pixel height divided by 16 pixel results in 2 rows lit simultaneously.
@@ -509,10 +511,26 @@ static inline int claim_dma_channel(const char *channel_name)
     return dma_channel;
 }
 
-inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
-                                        uint32_t &acc_gp,
-                                        uint32_t &acc_bp,
-                                        uint8_t r, uint8_t g, uint8_t b)
+#ifdef TEMPORAL_DITHERING
+/**
+ * @brief Map one BGR888 pixel → 10-bit packed RGB with temporal dithering.
+ *
+ * Each channel keeps a high-resolution accumulator. The LUT-mapped value is
+ * added with fractional bits (left shifted). The integer part is output and
+ * the remainder retained for the next frame.
+ *
+ * @param acc_r  Red accumulator reference
+ * @param acc_g  Green accumulator reference
+ * @param acc_b  Blue accumulator reference
+ * @param b      Blue channel (8-bit)
+ * @param g      Green channel (8-bit)
+ * @param r      Red channel (8-bit)
+ * @return       Packed 32-bit RGB word (10-bit/channel)
+ */
+inline __attribute__((always_inline)) uint32_t temporal_dithering(uint32_t &acc_rp,
+                                                                  uint32_t &acc_gp,
+                                                                  uint32_t &acc_bp,
+                                                                  uint8_t r, uint8_t g, uint8_t b)
 {
     // Add LUT values shifted for fractional precision
     acc_rp += (uint32_t)lut[r] << ACC_SHIFT;
@@ -524,7 +542,7 @@ inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
     uint32_t out_g = (acc_gp >> ACC_SHIFT) & 0x3FF;
     uint32_t out_b = (acc_bp >> ACC_SHIFT) & 0x3FF;
 
-    // Keep only remainder bits
+    // Keep only remainder bits - error propagation
     acc_rp &= (1u << ACC_SHIFT) - 1u;
     acc_gp &= (1u << ACC_SHIFT) - 1u;
     acc_bp &= (1u << ACC_SHIFT) - 1u;
@@ -532,6 +550,21 @@ inline uint32_t write_pixel_with_dither(uint32_t &acc_rp,
     // Pack into 32-bit HUB75 format
     return (out_r << 20) | (out_g << 10) | out_b;
 }
+#else
+/**
+ * @brief Map one BGR888 pixel → 10-bit packed RGB (no dithering).
+ *
+ * @param b  Blue channel (8-bit)
+ * @param g  Green channel (8-bit)
+ * @param r  Red channel (8-bit)
+ * @return   Packed 32-bit RGB word (R=bits 20–29, G=bits 10–19, B=bits 0–9)
+ */
+inline __attribute__((always_inline)) uint32_t no_dithering(uint8_t r, uint8_t g, uint8_t b)
+{
+    // LUT maps 8-bit → 10-bit, then pack into 32-bit RGB word
+    return (lut[r] << 20) | (lut[g] << 10) | lut[b];
+}
+#endif
 
 /**
  * @brief Updates the frame buffer with pixel data from the source array.
@@ -551,13 +584,17 @@ void update(const uint8_t *src)
 #ifdef HUB75_MULTIPLEX_2_ROWS
     for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
-        frame_buffer[j] = write_pixel_with_dither(
+#ifdef TEMPORAL_DITHERING
+        frame_buffer[j] = temporal_dithering(
             acc_r[j], acc_g[j], acc_b[j],
             src[k + 2], src[k + 1], src[k + 0]);
-
-        frame_buffer[j + 1] = write_pixel_with_dither(
+        frame_buffer[j + 1] = temporal_dithering(
             acc_r[j + 1], acc_g[j + 1], acc_b[j + 1],
             src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
+#else
+        frame_buffer[j] = no_dithering(src[k + 2], src[k + 1], src[k + 0]);
+        frame_buffer[j + 1] = no_dithering(src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
+#endif
     }
 #elif defined HUB75_MULTIPLEX_4_ROWS
     for (int j = 0, k = 0; j < width * height; j += 4, k += 3)
@@ -568,28 +605,37 @@ void update(const uint8_t *src)
         size_t k3 = k2 + rgb_offset;
 
         int idx = j;
-
-        frame_buffer[idx] = write_pixel_with_dither(
+#ifdef TEMPORAL_DITHERING
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k0 + 2], src[k0 + 1], src[k0 + 0]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k1 + 2], src[k1 + 1], src[k1 + 0]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k2 + 2], src[k2 + 1], src[k2 + 0]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k3 + 2], src[k3 + 1], src[k3 + 0]);
+#else
+        frame_buffer[idx] = no_dithering(src[k0 + 2], src[k0 + 1], src[k0 + 0]);
+        idx++;
+        frame_buffer[idx] = no_dithering(src[k1 + 2], src[k1 + 1], src[k1 + 0]);
+        idx++;
+        frame_buffer[idx] = no_dithering(src[k2 + 2], src[k2 + 1], src[k2 + 0]);
+        idx++;
+        frame_buffer[idx] = no_dithering(src[k3 + 2], src[k3 + 1], src[k3 + 0]);
+#endif
     }
 #endif
 }
@@ -613,16 +659,23 @@ void update_bgr(const uint8_t *src)
     for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
         int idx = j;
-
-        frame_buffer[idx] = write_pixel_with_dither(
+#ifdef TEMPORAL_DITHERING
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k + 0], src[k + 1], src[k + 2]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
+#else
+        frame_buffer[idx] = no_dithering(src[k], src[k + 1], src[k + 2]);
+
+        idx++;
+
+        frame_buffer[idx] = no_dithering(src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
+#endif
     }
 #elif defined HUB75_MULTIPLEX_4_ROWS
     for (int j = 0, k = 0; j < width * height; j += 4, k += 3)
@@ -633,65 +686,94 @@ void update_bgr(const uint8_t *src)
         size_t k3 = k2 + offset;
 
         int idx = j;
-
-        frame_buffer[idx] = write_pixel_with_dither(
+#ifdef TEMPORAL_DITHERING
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k0 + 0], src[k0 + 1], src[k0 + 2]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k1 + 0], src[k1 + 1], src[k1 + 2]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k2 + 0], src[k2 + 1], src[k2 + 2]);
 
         idx++;
 
-        frame_buffer[idx] = write_pixel_with_dither(
+        frame_buffer[idx] = temporal_dithering(
             acc_r[idx], acc_g[idx], acc_b[idx],
             src[k3 + 0], src[k3 + 1], src[k3 + 2]);
+#else
+        frame_buffer[idx] = no_dithering(src[k0 + 0], src[k0 + 1], src[k0 + 2]);
+
+        idx++;
+
+        frame_buffer[idx] = no_dithering(src[k1 + 0], src[k1 + 1], src[k1 + 2]);
+
+        idx++;
+
+        frame_buffer[idx] = no_dithering(src[k2 + 0], src[k2 + 1], src[k2 + 2]);
+
+        idx++;
+
+        frame_buffer[idx] = no_dithering(src[k3 + 0], src[k3 + 1], src[k3 + 2]);
+#endif
     }
 #endif
 }
 
 /**
- * @brief Update a portion of the framebuffer with pixels from LVGL (BGR888).
+ * @brief Update the HUB75 frame buffer from an LVGL BGR888 source buffer.
  *
- * This function updates only the rectangular area defined by the coordinates in `area`.
- * It assumes the source data `src` is in BGR888 format, row-major, and interleaved
- * as LVGL provides for a flush area.
+ * The input is BGR888 (8 bits per channel, packed into uint8_t array).
+ * Output is written into the HUB75 driver frame_buffer (R/G/B = 10 bits each, packed into 32-bit words).
  *
- * @param src Pointer to pixel data in BGR888 format.
- * @param area Area to update in the display coordinate space.
+ * Two implementations are supported:
+ *  - Without temporal dithering: direct LUT mapping (8 → 10 bits).
+ *  - With temporal dithering (#define TEMPORAL_DITHERING): accumulators preserve sub-bit error
+ *    across frames, improving perceived colour depth (≈12–14 bits).
+ *
+ * @param src  Pointer to LVGL BGR888 source buffer
+ * @param x1   Left coordinate of update region
+ * @param y1   Top coordinate of update region
+ * @param x2   Right coordinate of update region
+ * @param y2   Bottom coordinate of update region
  */
-void update_area_bgr(const uint8_t *src, int x1, int y1, int x2, int y2)
+void update_area_bgr(const uint8_t *src,
+                     int32_t x1, int32_t y1,
+                     int32_t x2, int32_t y2)
 {
-    int w = (x2 - x1 + 1);
-    int h = (y2 - y1 + 1);
-    int src_idx = 0;
+    const uint32_t src_stride = width * 3; // LVGL source stride (BGR888)
+    const uint32_t fb_stride = width * 2;  // frame_buffer stride
 
-    for (int y = y1; y <= y2; y++)
+    for (int y = y1; y <= y2; ++y)
     {
-#ifdef HUB75_MULTIPLEX_2_ROWS
-        int row_offset = y * width;
-        for (int x = x1; x <= x2; x++)
+        const bool upper_half = (y >= (height >> 1));
+        const uint32_t l = upper_half ? 1u : 0u;
+
+        const uint32_t fb_row = (upper_half ? (y - (height >> 1)) : y) * fb_stride;
+        const uint32_t src_row = y * src_stride;
+
+        int j = fb_row + 2 * x1;  // frame_buffer index
+        int k = src_row + 3 * x1; // source index
+
+        for (int x = x1; x <= x2; ++x)
         {
-            int idx = row_offset + x;
-
-            frame_buffer[idx] = write_pixel_with_dither(
-                acc_r[idx], acc_g[idx], acc_b[idx],
-                src[src_idx + 0], src[src_idx + 1], src[src_idx + 2]);
-
-            src_idx += 3;
+#ifdef TEMPORAL_DITHERING
+            frame_buffer[j + l] = temporal_dithering(
+                acc_r[j + l], acc_g[j + l], acc_b[j + l],
+                src[k], src[k + 1], src[k + 2]);
+#else
+            frame_buffer[j + l] = no_dithering(
+                src[k], src[k + 1], src[k + 2]);
+#endif
+            j += 2; // advance frame_buffer
+            k += 3; // advance source
         }
     }
-    // in progress
-#elif defined HUB75_MULTIPLEX_4_ROWS
-        // to be done
-#endif
 }
