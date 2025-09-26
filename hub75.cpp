@@ -155,7 +155,7 @@ static volatile uint32_t basis_factor = 6u;
 inline __attribute__((always_inline)) uint32_t set_row_in_bit_plane(uint32_t row_address, uint32_t bit_plane)
 {
     // scaled_basis[bit_plane] already includes brightness scaling.
-    // left shift by ROWSEL_N_PINS to form the OEn-length encoding (unchanged from your scheme).
+    // left shift by ROWSEL_N_PINS to form the OEn-length encoding.
     return row_address | (scaled_basis[bit_plane] << ROWSEL_N_PINS);
 }
 
@@ -167,7 +167,6 @@ static void recompute_scaled_basis()
 
     for (int b = 0; b < BIT_DEPTH; ++b)
     {
-        // base = basis_factor << b
         // use 64-bit intermediate to avoid overflow during multiply
         uint64_t base = (uint64_t)basis_factor << b;
         tmp[b] = (uint32_t)((base * (uint64_t)brightness_fp) >> BRIGHTNESS_FP_SHIFT);
@@ -247,7 +246,11 @@ static void oen_finished_handler()
     dma_hw->ints0 = 1u << oen_finished_chan;
 
     // Advance row addressing; reset and increment bit-plane if needed
+#ifdef HUB75_MULTIPLEX_2_ROWS
     if (++row_address >= (height >> 1))
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    if (++row_address >= (height >> 2))
+#endif
     {
         row_address = 0;
 
