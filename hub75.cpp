@@ -161,7 +161,7 @@ inline __attribute__((always_inline)) uint32_t set_row_in_bit_plane(uint32_t row
 
 // Recompute scaled_basis[] using a temporary array and swap under IRQ protection.
 // scaled_basis[b] = (basis_factor << b) * brightness_fp  >> BRIGHTNESS_FP_SHIFT
-static void recompute_scaled_basis()
+__attribute__((optimize("unroll-loops"))) static void recompute_scaled_basis()
 {
     uint32_t tmp[BIT_DEPTH];
 
@@ -642,7 +642,7 @@ inline __attribute__((always_inline)) uint32_t no_dithering(uint8_t r, uint8_t g
  *
  * @param src Pointer to the source pixel data array (RGB888 format).
  */
-void update(const uint8_t *src)
+__attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
     // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
@@ -716,7 +716,7 @@ void update(const uint8_t *src)
  *
  * @param src Pointer to the source pixel data array (RGB888 format).
  */
-void update_bgr(const uint8_t *src)
+__attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
 {
     uint rgb_offset = offset * 3;
     // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
@@ -811,7 +811,7 @@ void update_bgr(const uint8_t *src)
  * @param x2   Right coordinate of update region
  * @param y2   Bottom coordinate of update region
  */
-void update_area_bgr(const uint8_t *src,
+__attribute__((optimize("unroll-loops"))) void update_area_bgr(const uint8_t *src,
                      int32_t x1, int32_t y1,
                      int32_t x2, int32_t y2)
 {

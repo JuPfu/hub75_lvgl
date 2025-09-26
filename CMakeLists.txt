@@ -38,7 +38,7 @@ pico_sdk_init()
 add_executable(hub75_lvgl hub75_lvgl.cpp)
 
 pico_set_program_name(hub75_lvgl "hub75_lvgl")
-pico_set_program_version(hub75_lvgl "0.9")
+pico_set_program_version(hub75_lvgl "1.2")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(hub75_lvgl 0)
