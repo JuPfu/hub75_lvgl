@@ -27,20 +27,22 @@ extern "C" {
 
 typedef  void * (*lv_xml_component_process_cb_t)(lv_obj_t * parent, const char * data, const char ** attrs);
 
-struct _lv_xml_component_ctx_t {
+struct _lv_xml_component_scope_t {
     const char * name;
     lv_ll_t style_ll;
     lv_ll_t const_ll;
     lv_ll_t param_ll;
     lv_ll_t gradient_ll;
     lv_ll_t subjects_ll;
+    lv_ll_t timeline_ll;
     lv_ll_t font_ll;
     lv_ll_t image_ll;
     lv_ll_t event_ll;
     const char * view_def;
-    struct _lv_widget_processor_t * root_widget;
-    uint32_t is_widget : 1;                         /*1: not component but widget registered as a component for preview*/
-    struct _lv_xml_component_ctx_t * next;
+    const char * extends;
+    uint32_t is_widget : 1;
+    uint32_t is_screen : 1;
+    struct _lv_xml_component_scope_t * next;
 };
 
 typedef struct {
@@ -52,6 +54,11 @@ typedef struct {
     const char * name;
     lv_subject_t * subject;
 } lv_xml_subject_t;
+
+typedef struct {
+    const char * name;
+    lv_ll_t anims_ll;
+} lv_xml_timeline_t;
 
 typedef struct {
     const char * name;
@@ -75,9 +82,9 @@ void lv_xml_component_init(void);
 
 /**
  * Initialize the linked lists of a component context
- * @param ctx       pointer to a component contexts
+ * @param scope     pointer to a component contexts
  */
-void lv_xml_component_ctx_init(lv_xml_component_ctx_t * ctx);
+void lv_xml_component_scope_init(lv_xml_component_scope_t * scope);
 
 /**********************
  *      MACROS

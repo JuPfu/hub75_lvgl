@@ -40,14 +40,16 @@ You can get pointers to each of these screens on a specified display by using
 To set a Screen you create to be the :ref:`active_screen`, call
 :cpp:func:`lv_screen_load` or :cpp:func:`lv_screen_load_anim`.
 
-
+Calling :cpp:expr:`lv_display_get_screen_loading(disp)` will return the screen that is
+being loaded. A Screen is considered "being loaded" until the loading animation finishes.
+If no Screen is being loaded, this function will return ``NULL``.
 
 .. _layers_top_and_sys:
 
 Top and System Layers
 *********************
 
-LVGL uses the Top Layer and System Layer two empower you to ensure that certain
+LVGL uses the Top Layer and System Layer to empower you to ensure that certain
 :ref:`widgets` are *always* on top of other layers.
 
 You can add "pop-up windows" to the *Top Layer* freely.  The Top Layer was meant to

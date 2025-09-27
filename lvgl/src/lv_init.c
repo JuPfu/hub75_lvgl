@@ -39,6 +39,7 @@
 #include "misc/lv_fs.h"
 #include "osal/lv_os_private.h"
 #include "others/sysmon/lv_sysmon_private.h"
+#include "others/translation/lv_translation.h"
 #include "others/xml/lv_xml.h"
 
 #if LV_USE_SVG
@@ -47,9 +48,6 @@
 
 #if LV_USE_NEMA_GFX
     #include "draw/nema_gfx/lv_draw_nema_gfx.h"
-#endif
-#if LV_USE_DRAW_VGLITE
-    #include "draw/nxp/vglite/lv_draw_vglite.h"
 #endif
 #if LV_USE_PXP
     #if LV_USE_DRAW_PXP || LV_USE_ROTATE_PXP
@@ -74,6 +72,9 @@
 #if LV_USE_DRAW_OPENGLES
     #include "draw/opengles/lv_draw_opengles.h"
 #endif
+#if LV_USE_PPA
+    #include "draw/espressif/ppa/lv_draw_ppa.h"
+#endif
 #if LV_USE_WINDOWS
     #include "drivers/windows/lv_windows_context.h"
 #endif
@@ -82,6 +83,9 @@
 #endif
 #if LV_USE_EVDEV
     #include "drivers/evdev/lv_evdev_private.h"
+#endif
+#if LV_USE_DRAW_EVE
+    #include "draw/eve/lv_draw_eve.h"
 #endif
 
 /*********************
@@ -196,9 +200,13 @@ void lv_init(void)
 #endif
 
 #if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
+#if LV_USE_PROFILER_BUILTIN_POSIX
+    lv_profiler_builtin_posix_init();
+#else
     lv_profiler_builtin_config_t profiler_config;
     lv_profiler_builtin_config_init(&profiler_config);
     lv_profiler_builtin_init(&profiler_config);
+#endif
 #endif
 
     lv_os_init();
@@ -230,10 +238,6 @@ void lv_init(void)
     lv_draw_nema_gfx_init();
 #endif
 
-#if LV_USE_DRAW_VGLITE
-    lv_draw_vglite_init();
-#endif
-
 #if LV_USE_PXP
 #if LV_USE_DRAW_PXP || LV_USE_ROTATE_PXP
     lv_draw_pxp_init();
@@ -260,12 +264,20 @@ void lv_init(void)
     lv_draw_opengles_init();
 #endif
 
+#if LV_USE_PPA
+    lv_draw_ppa_init();
+#endif
+
 #if LV_USE_WINDOWS
     lv_windows_platform_init();
 #endif
 
 #if LV_USE_UEFI
     lv_uefi_platform_init();
+#endif
+
+#if LV_USE_DRAW_EVE
+    lv_draw_eve_init();
 #endif
 
     lv_obj_style_init();
@@ -357,6 +369,10 @@ void lv_init(void)
     lv_fs_uefi_init();
 #endif
 
+#if LV_USE_FS_FROGFS
+    lv_fs_frogfs_init();
+#endif
+
     /*Use the earlier initialized position of FFmpeg decoder as a fallback decoder*/
 #if LV_USE_FFMPEG
     lv_ffmpeg_init();
@@ -384,6 +400,10 @@ void lv_init(void)
 
 #if LV_USE_SVG
     lv_svg_decoder_init();
+#endif
+
+#if LV_USE_TRANSLATION
+    lv_translation_init();
 #endif
 
 #if LV_USE_XML
@@ -455,10 +475,6 @@ void lv_deinit(void)
 #endif
 #endif
 
-#if LV_USE_DRAW_VGLITE
-    lv_draw_vglite_deinit();
-#endif
-
 #if LV_USE_DRAW_G2D
     lv_draw_g2d_deinit();
 #endif
@@ -487,8 +503,6 @@ void lv_deinit(void)
 
     lv_layout_deinit();
 
-    lv_fs_deinit();
-
     lv_timer_core_deinit();
 
 #if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
@@ -498,6 +512,20 @@ void lv_deinit(void)
 #if LV_USE_OBJ_ID && LV_USE_OBJ_ID_BUILTIN
     lv_objid_builtin_destroy();
 #endif
+
+#if LV_USE_XML
+    lv_xml_deinit();
+#endif
+
+#if LV_USE_TRANSLATION
+    lv_translation_deinit();
+#endif
+
+#if LV_USE_FS_FROGFS
+    lv_fs_frogfs_deinit();
+#endif
+
+    lv_fs_deinit();
 
     lv_mem_deinit();
 

@@ -95,7 +95,7 @@ void lv_draw_pxp_init(void)
     draw_pxp_unit->base_unit.name = "NXP_PXP";
 
 #if LV_USE_PXP_DRAW_THREAD
-    lv_thread_init(&draw_pxp_unit->thread, "pxpdraw", LV_THREAD_PRIO_HIGH, _pxp_render_thread_cb, 2 * 1024, draw_pxp_unit);
+    lv_thread_init(&draw_pxp_unit->thread, "pxpdraw", LV_DRAW_THREAD_PRIO, _pxp_render_thread_cb, 2 * 1024, draw_pxp_unit);
 #endif
 #endif /*LV_USE_DRAW_PXP*/
 }
@@ -111,19 +111,26 @@ void lv_draw_pxp_rotate(const void * src_buf, void * dest_buf, int32_t src_width
 {
     lv_pxp_reset();
 
-    /* convert rotation angle */
+    /* Convert rotation angle
+     * To be in sync with CPU, the received angle is counterclockwise
+     * and the PXP constants are for clockwise rotation
+     *
+     *    counterclockwise          clockwise
+     * LV_DISPLAY_ROTATION_90  -> kPXP_Rotate270
+     * LV_DISPLAY_ROTATION_270 -> kPXP_Rotate90
+     */
     pxp_rotate_degree_t pxp_rotation;
     switch(rotation) {
         case LV_DISPLAY_ROTATION_0:
             pxp_rotation = kPXP_Rotate0;
             break;
-        case LV_DISPLAY_ROTATION_90:
+        case LV_DISPLAY_ROTATION_270:
             pxp_rotation = kPXP_Rotate90;
             break;
         case LV_DISPLAY_ROTATION_180:
             pxp_rotation = kPXP_Rotate180;
             break;
-        case LV_DISPLAY_ROTATION_270:
+        case LV_DISPLAY_ROTATION_90:
             pxp_rotation = kPXP_Rotate270;
             break;
         default:
@@ -291,9 +298,6 @@ static int32_t _pxp_evaluate(lv_draw_unit_t * u, lv_draw_task_t * t)
                 if(img_dsc->header.cf >= LV_COLOR_FORMAT_PROPRIETARY_START)
                     return 0;
 
-                if(draw_dsc->tile)
-                    return 0;
-
                 if((!_pxp_src_cf_supported(img_dsc->header.cf)) ||
                    (!pxp_buf_aligned(img_dsc->data, img_dsc->header.stride)))
                     return 0;
@@ -341,7 +345,7 @@ static int32_t _pxp_dispatch(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
 #else
     _pxp_execute_drawing(draw_pxp_unit);
 
-    draw_pxp_unit->task_act->state = LV_DRAW_TASK_STATE_READY;
+    draw_pxp_unit->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
     draw_pxp_unit->task_act = NULL;
 
     /* The draw unit is free now. Request a new dispatching as it can get a new task. */
@@ -375,7 +379,6 @@ static int32_t _pxp_delete(lv_draw_unit_t * draw_unit)
 static void _pxp_execute_drawing(lv_draw_pxp_unit_t * u)
 {
     lv_draw_task_t * t = u->task_act;
-    lv_draw_unit_t * draw_unit = (lv_draw_unit_t *)u;
     lv_layer_t * layer = t->target_layer;
     lv_draw_buf_t * draw_buf = layer->draw_buf;
 
@@ -395,13 +398,13 @@ static void _pxp_execute_drawing(lv_draw_pxp_unit_t * u)
 
     switch(t->type) {
         case LV_DRAW_TASK_TYPE_FILL:
-            lv_draw_pxp_fill(t, t->draw_dsc, &t->area);
+            lv_draw_pxp_fill(t);
             break;
         case LV_DRAW_TASK_TYPE_IMAGE:
-            lv_draw_pxp_img(t, t->draw_dsc, &t->area);
+            lv_draw_pxp_img(t);
             break;
         case LV_DRAW_TASK_TYPE_LAYER:
-            lv_draw_pxp_layer(t, t->draw_dsc, &t->area);
+            lv_draw_pxp_layer(t);
             break;
         default:
             break;
@@ -474,7 +477,7 @@ static void _pxp_render_thread_cb(void * ptr)
         _pxp_execute_drawing(u);
 
         /* Signal the ready state to dispatcher. */
-        u->task_act->state = LV_DRAW_TASK_STATE_READY;
+        u->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
 
         /* Cleanup. */
         u->task_act = NULL;

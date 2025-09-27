@@ -1562,7 +1562,6 @@ class DoxygenXml(object):
         cfg.set('XML_OUTPUT', "xml")
         cfg.set('HTML_OUTPUT', 'doxygen_html')
         cfg.set('INPUT', lvgl_src_dir)
-        cfg.set('PREDEFINED', f'DOXYGEN LV_CONF_PATH="{lv_conf_file}"')
         cfg.set('QUIET', 'YES')
         cfg.set('GENERATE_HTML', 'NO')
         cfg.set('GENERATE_DOCSET', 'NO')
@@ -1576,6 +1575,72 @@ class DoxygenXml(object):
         cfg.set('GENERATE_XML', 'YES')
         cfg.set('GENERATE_DOCBOOK', 'NO')
         cfg.set('GENERATE_PERLMOD', 'NO')
+
+        # The predefined definitions are:
+        # - DOXYGEN (defines it as 1 and allows conditional directives [e.g. #if]
+        #   to do special things when DOXYGEN is processing it, as opposed to
+        #   a C compiler.
+        # - LV_CONF_PATH predefines the path where `lv_conf_internal.h` will
+        #   include the `lv_conf.h` file.
+        # - All the others here are used when macros prefix a line of code like this:
+        #
+        #       LV_ATTRIBUTE_EXTERN_DATA extern const lv_obj_class_t lv_obj_class;
+        #
+        #   which occurs in `lv_obj.h`.  When these are added to the PREDEFINED list as
+        #   "MACRO_NAME=" with no value, Doxygen expands the macro to an empty string
+        #   allowing Doxygen to correctly parse the line.  The additional macros that
+        #   are treated that way are found in the middle of `lv_conf_template.h` in a
+        #   section called "COMPILER SETTINGS" with no definitions, made for prefixing
+        #   various code.  (This works around Doxygen's failure to correctly deal with
+        #   macros that are defined with no values, as these are in lv_conf.h.)
+        #   This list is current as of 28-Apr-2025.
+        predefined_symbols = [
+            'DOXYGEN',
+            f'LV_CONF_PATH="{lv_conf_file}"',
+            'LV_ATTRIBUTE_TICK_INC=',
+            'LV_ATTRIBUTE_TIMER_HANDLER=',
+            'LV_ATTRIBUTE_FLUSH_READY=',
+            'LV_ATTRIBUTE_MEM_ALIGN=',
+            'LV_ATTRIBUTE_LARGE_CONST=',
+            'LV_ATTRIBUTE_LARGE_RAM_ARRAY=',
+            'LV_ATTRIBUTE_FAST_MEM=',
+            'LV_ATTRIBUTE_EXTERN_DATA=',
+            'LV_FORMAT_ATTRIBUTE(fmt,va)=',
+            'FASTGLTF_EXPORT=',
+        ]
+
+        cfg.set('PREDEFINED', predefined_symbols)
+
+        # Exclude OSAL `.h` files except for `lv_os_none.h`.  Reason:  they define
+        # lv_mutex_t, lv_thread_t and lv_thread_sync_t in multiple places.  Doxygen
+        # must only see one.
+        osal_dir = 'osal'
+
+        osal_exclude_list = [
+            'lv_cmsis_rtos2.h',
+            'lv_freertos.h',
+            'lv_mqx.h',
+            'lv_pthread.h',
+            'lv_rtthread.h',
+            'lv_sdl2.h',
+            'lv_windows.h',
+        ]
+
+        exclude_paths = []
+
+        for osal_h in osal_exclude_list:
+            full_path = os.path.join(lvgl_src_dir, osal_dir, osal_h)
+            exclude_paths.append(full_path)
+
+        # Exclude as a workaround for Breathe parsing problems.
+        full_path = os.path.join(lvgl_src_dir, 'core', 'lv_obj_property.h')
+        exclude_paths.append(full_path)
+
+        # Exclude GLTF templates that Breathe appears to not know how to parse.
+        full_path = os.path.join(lvgl_src_dir, 'libs', 'gltf', 'fastgltf', 'lv_fastgltf.hpp')
+        exclude_paths.append(full_path)
+
+        cfg.set('EXCLUDE', exclude_paths)
 
         # Include TAGFILES if requested.
         if doxy_tagfile:

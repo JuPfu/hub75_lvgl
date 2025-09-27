@@ -8,7 +8,7 @@ Roller (lv_roller)
 Overview
 ********
 
-Roller allows the end user to select an item from a list by scrolling it.
+Roller allows the end user to select an item from a list by scrolling through it.
 The item in the middle is the selected item and normally stands out from
 the other items due to different styles applied to it.
 
@@ -75,6 +75,21 @@ The number of visible rows can be adjusted with :cpp:expr:`lv_roller_set_visible
 This function calculates the height with the current style. If the font,
 line space, border width, etc. of the Roller changes, this function needs
 to be called again.
+
+Data binding
+------------
+
+To get familiar with observers, subjects, and data bindings in general visit the
+:ref:`Observer <observer_how_to_use>` page.
+
+This method of subscribing to an integer Subject affects a Roller Widget's integer
+value directly.  Note that this is a two-way binding (Subject <===> Widget) so an end
+user's direct interaction with the Roller Widget updates the Subject's value and vice
+versa.
+
+It supports only integer subjects.
+
+- :cpp:expr:`lv_roller_bind_value(roller, &subject)`
 
 
 

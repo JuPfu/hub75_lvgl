@@ -108,8 +108,10 @@
 #define LV_USE_SVG_DEBUG        1
 #define LV_USE_PROFILER         1
 #define LV_PROFILER_INCLUDE     "lv_profiler_builtin.h"
+#define LV_USE_PROFILER_BUILTIN_POSIX 1
 #define LV_USE_GRIDNAV          1
 #define LV_USE_XML              1
+#define LV_USE_TRANSLATION      1
 #define LV_USE_TEST             1
 #define LV_USE_TEST_SCREENSHOT_COMPARE  1
 
@@ -179,5 +181,7 @@
 #define LV_USE_DRAW_SW_COMPLEX_GRADIENTS    1
 
 #define LV_USE_GESTURE_RECOGNITION 1
+
+#define LV_DISABLE_API_MAPPING 1
 
 #endif /* LV_TEST_CONF_FULL_H */

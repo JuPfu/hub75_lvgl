@@ -5,7 +5,7 @@
 
 #include "pico/stdlib.h"
 
-#include "lvgl/src/misc/lv_types.h"
+#include "lvgl/src/display/lv_display.h"
 #include "lvgl/src/misc/lv_color.h"
 #include "lvgl/src/widgets/canvas/lv_canvas.h"
 #include "lvgl/src/draw/lv_draw_rect.h"
@@ -108,6 +108,6 @@ public:
 
     void show()
     {
-        lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 2000, 0, false);
+        lv_screen_load_anim(screen, LV_SCREEN_LOAD_ANIM_FADE_IN, 2000, 0, false);
     }
 };

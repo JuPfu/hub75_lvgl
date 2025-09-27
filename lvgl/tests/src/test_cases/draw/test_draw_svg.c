@@ -1,5 +1,6 @@
 #if LV_BUILD_TEST
 #include "../lvgl.h"
+#include "../src/misc/cache/lv_cache.h"
 
 #include <string.h>
 
@@ -11,7 +12,7 @@ static lv_draw_buf_t * canvas_buf;
 
 void setUp(void)
 {
-    canvas = lv_canvas_create(lv_scr_act());
+    canvas = lv_canvas_create(lv_screen_active());
     canvas_buf = lv_draw_buf_create(480, 480, LV_COLOR_FORMAT_ARGB8888, 0);
     TEST_ASSERT_NOT_NULL(canvas_buf);
     lv_canvas_set_draw_buf(canvas, canvas_buf);
@@ -23,7 +24,7 @@ void tearDown(void)
 {
     lv_image_cache_drop(canvas_buf);
     lv_draw_buf_destroy(canvas_buf);
-    lv_obj_del(canvas);
+    lv_obj_delete(canvas);
 }
 
 #if LV_USE_VECTOR_GRAPHIC && LV_USE_SVG
@@ -307,6 +308,25 @@ void test_draw_shapes(void)
     TEST_ASSERT_NOT_EQUAL(NULL, svg);
     draw_svg(svg);
     draw_snapshot(SNAPSHOT_NAME(svg_shapes_11));
+    lv_svg_node_delete(svg);
+
+    const char * svg_shapes_12 = \
+                                 "<svg width=600 height=200 viewBox=\"0 0 1200 400\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">"
+                                 "<rect x=\"1\" y=\"1\" width=\"1198\" height=\"398\" fill=\"none\" stroke=\"blue\" stroke-width=\"1\"/>"
+                                 "<path d=\"M300,200 h-150 a150,150 0 1,0 150,-150 z\" fill=\"red\" stroke=\"blue\" stroke-width=\"5\"/>"
+                                 "<path d=\"M275,175 v-150 a150,150 0 0,0 -150,150 z\""
+                                 " fill=\"yellow\" stroke=\"blue\" stroke-width=\"5\"/>"
+                                 "<path d=\"M600,350 l 50,-25"
+                                 " a25,25 -30 0,1 50,-25 l 50,-25"
+                                 " a25,50 -30 0,1 50,-25 l 50,-25"
+                                 " a25,75 -30 0,1 50,-25 l 50,-25"
+                                 " a25,100 -30 0,1 50,-25 l 50,-25\""
+                                 " fill=\"none\" stroke=\"red\" stroke-width=\"5\"/></svg>";
+
+    svg = lv_svg_load_data(svg_shapes_12, lv_strlen(svg_shapes_12));
+    TEST_ASSERT_NOT_EQUAL(NULL, svg);
+    draw_svg(svg);
+    draw_snapshot(SNAPSHOT_NAME(svg_shapes_12));
     lv_svg_node_delete(svg);
 }
 

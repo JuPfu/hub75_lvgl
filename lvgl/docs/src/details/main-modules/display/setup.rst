@@ -70,16 +70,16 @@ display.  Do so by calling:
    -  :cpp:enumerator:`LV_DISPLAY_RENDER_MODE_PARTIAL` Use the buffer(s) to render
       to the display using buffers smaller than the size of the display.  Use of
       buffers at least 1/10 display size is recommended.  In :ref:`flush_callback` the rendered
-      images needs to be copied to the given area of the display.  In this mode if a
+      images need to be copied to the given area of the display.  In this mode if a
       button is pressed only the button's area will be redrawn.
-   -  :cpp:enumerator:`LV_DISPLAY_RENDER_MODE_DIRECT` The buffer size(es) must match
+   -  :cpp:enumerator:`LV_DISPLAY_RENDER_MODE_DIRECT` The buffer size(s) must match
       the size of the display.  LVGL will render into the correct location of the
       buffer.  Using this method the buffer(s) always contain the whole display image.
-      If two buffer are used, the rendered areas are automatically copied to the
+      If two buffers are used, the rendered areas are automatically copied to the
       other buffer after flushing.  Due to this in :ref:`flush_callback` typically
       only a frame buffer address needs to be changed.  If a button is pressed
       only the button's area will be redrawn.
-   -  :cpp:enumerator:`LV_DISPLAY_RENDER_MODE_FULL` The buffer size(es) must match
+   -  :cpp:enumerator:`LV_DISPLAY_RENDER_MODE_FULL` The buffer size(s) must match
       the size of the display.  LVGL will always redraw the whole screen even if only
       1 pixel has been changed.  If two display-sized draw buffers are provided,
       LVGL's display handling works like "traditional" double buffering.  This means
@@ -116,6 +116,14 @@ other hardware should be used to transfer data to the display so the MCU
 can continue drawing.  Doing so allows *rendering* and *refreshing* the
 display to become parallel operations.
 
+Three Buffers
+-------------
+
+Triple buffering enhances parallelism between rendering and data transfer compared
+to double buffering. When one buffer has completed rendering and another is actively
+undergoing DMA transfer, the third buffer enables immediate rendering of the next frame,
+eliminating CPU/GPU idle time caused by waiting for DMA completion.
+The third buffer is configured using the :cpp:func:`lv_display_set_3rd_draw_buffer` function.
 
 
 .. _flush_callback:

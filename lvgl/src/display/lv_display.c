@@ -1,5 +1,5 @@
 /**
- * @file lv_disp.c
+ * @file lv_display.c
  *
  */
 
@@ -127,6 +127,13 @@ lv_display_t * lv_display_create(int32_t hor_res, int32_t ver_res)
     else {
         disp->theme = lv_theme_simple_get();
     }
+#elif LV_USE_THEME_MONO
+    if(lv_theme_mono_is_inited() == false) {
+        disp->theme = lv_theme_mono_init(disp, false, LV_FONT_DEFAULT);
+    }
+    else {
+        disp->theme = lv_theme_mono_get();
+    }
 #endif
 
     disp->bottom_layer = lv_obj_create(NULL); /*Create bottom layer on the display*/
@@ -171,6 +178,7 @@ void lv_display_delete(lv_display_t * disp)
     if(disp == lv_refr_get_disp_refreshing()) was_refr = true;
 
     lv_display_send_event(disp, LV_EVENT_DELETE, NULL);
+    lv_event_mark_deleted(disp);
     lv_event_remove_all(&(disp->event_list));
 
     /*Detach the input devices*/
@@ -439,6 +447,19 @@ void lv_display_set_draw_buffers(lv_display_t * disp, lv_draw_buf_t * buf1, lv_d
     disp->buf_1 = buf1;
     disp->buf_2 = buf2;
     disp->buf_act = disp->buf_1;
+
+    disp->stride_is_auto = 0;
+}
+
+void lv_display_set_3rd_draw_buffer(lv_display_t * disp, lv_draw_buf_t * buf3)
+{
+    if(disp == NULL) disp = lv_display_get_default();
+    if(disp == NULL) return;
+
+    LV_ASSERT_MSG(disp->buf_1 != NULL, "buf1 is null");
+    LV_ASSERT_MSG(disp->buf_2 != NULL, "buf2 is null");
+
+    disp->buf_3 = buf3;
 }
 
 void lv_display_set_buffers(lv_display_t * disp, void * buf1, void * buf2, uint32_t buf_size,
@@ -456,6 +477,7 @@ void lv_display_set_buffers(lv_display_t * disp, void * buf1, void * buf2, uint3
 
     uint32_t stride = lv_draw_buf_width_to_stride(w, cf);
     if(render_mode == LV_DISPLAY_RENDER_MODE_PARTIAL) {
+        LV_ASSERT_FORMAT_MSG(stride != 0, "stride is 0, check your color format %d and width: %" LV_PRIu32, cf, w);
         /* for partial mode, we calculate the height based on the buf_size and stride */
         h = buf_size / stride;
         LV_ASSERT_MSG(h != 0, "the buffer is too small");
@@ -469,11 +491,19 @@ void lv_display_set_buffers(lv_display_t * disp, void * buf1, void * buf2, uint3
     lv_draw_buf_init(&disp->_static_buf2, w, h, cf, stride, buf2, buf_size);
     lv_display_set_draw_buffers(disp, &disp->_static_buf1, buf2 ? &disp->_static_buf2 : NULL);
     lv_display_set_render_mode(disp, render_mode);
+
+    /* the stride was not set explicitly */
+    disp->stride_is_auto = 1;
 }
 
 void lv_display_set_buffers_with_stride(lv_display_t * disp, void * buf1, void * buf2, uint32_t buf_size,
                                         uint32_t stride, lv_display_render_mode_t render_mode)
 {
+    if(stride == LV_STRIDE_AUTO) {
+        lv_display_set_buffers(disp, buf1, buf2, buf_size, render_mode);
+        return;
+    }
+
     LV_ASSERT_MSG(buf1 != NULL, "Null buffer");
     lv_color_format_t cf = lv_display_get_color_format(disp);
     uint32_t w = lv_display_get_original_horizontal_resolution(disp);
@@ -494,6 +524,8 @@ void lv_display_set_buffers_with_stride(lv_display_t * disp, void * buf1, void *
     lv_draw_buf_init(&disp->_static_buf2, w, h, cf, stride, buf2, buf_size);
     lv_display_set_draw_buffers(disp, &disp->_static_buf1, buf2 ? &disp->_static_buf2 : NULL);
     lv_display_set_render_mode(disp, render_mode);
+
+    disp->stride_is_auto = 0;
 }
 
 void lv_display_set_render_mode(lv_display_t * disp, lv_display_render_mode_t render_mode)
@@ -528,6 +560,7 @@ void lv_display_set_color_format(lv_display_t * disp, lv_color_format_t color_fo
     disp->layer_head->color_format = color_format;
     if(disp->buf_1) disp->buf_1->header.cf = color_format;
     if(disp->buf_2) disp->buf_2->header.cf = color_format;
+    if(disp->buf_3) disp->buf_3->header.cf = color_format;
 
     lv_display_send_event(disp, LV_EVENT_COLOR_FORMAT_CHANGED, NULL);
 }
@@ -604,6 +637,17 @@ lv_obj_t * lv_display_get_screen_active(lv_display_t * disp)
     return disp->act_scr;
 }
 
+lv_obj_t * lv_display_get_screen_loading(lv_display_t * disp)
+{
+    if(!disp) disp = lv_display_get_default();
+    if(!disp) {
+        LV_LOG_WARN("no display registered to get the current screen being loaded");
+        return NULL;
+    }
+
+    return disp->scr_to_load;
+}
+
 lv_obj_t * lv_display_get_screen_prev(lv_display_t * disp)
 {
     if(!disp) disp = lv_display_get_default();
@@ -648,9 +692,31 @@ lv_obj_t * lv_display_get_layer_bottom(lv_display_t * disp)
     return disp->bottom_layer;
 }
 
+#if LV_USE_OBJ_NAME
+
+lv_obj_t * lv_display_get_screen_by_name(const lv_display_t * disp, const char * screen_name)
+{
+    if(!disp) disp = lv_display_get_default();
+    if(!disp) {
+        LV_LOG_WARN("no display registered to get a screen by name");
+        return NULL;
+    }
+
+    uint32_t i;
+    for(i = 0; i < disp->screen_cnt; i++) {
+        const char * n = lv_obj_get_name(disp->screens[i]);
+        if(n && lv_streq(screen_name, n)) return disp->screens[i];
+    }
+
+    return NULL;
+
+}
+
+#endif /*LV_USE_OBJ_NAME*/
+
 void lv_screen_load(struct _lv_obj_t * scr)
 {
-    lv_screen_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, false);
+    lv_screen_load_anim(scr, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
 }
 
 void lv_screen_load_anim(lv_obj_t * new_scr, lv_screen_load_anim_t anim_type, uint32_t time, uint32_t delay,
@@ -716,76 +782,76 @@ void lv_screen_load_anim(lv_obj_t * new_scr, lv_screen_load_anim_t anim_type, ui
     lv_anim_set_delay(&a_old, delay);
 
     switch(anim_type) {
-        case LV_SCR_LOAD_ANIM_NONE:
+        case LV_SCREEN_LOAD_ANIM_NONE:
             /*Create a dummy animation to apply the delay*/
             lv_anim_set_exec_cb(&a_new, set_x_anim);
             lv_anim_set_values(&a_new, 0, 0);
             break;
-        case LV_SCR_LOAD_ANIM_OVER_LEFT:
+        case LV_SCREEN_LOAD_ANIM_OVER_LEFT:
             lv_anim_set_exec_cb(&a_new, set_x_anim);
             lv_anim_set_values(&a_new, lv_display_get_horizontal_resolution(d), 0);
             break;
-        case LV_SCR_LOAD_ANIM_OVER_RIGHT:
+        case LV_SCREEN_LOAD_ANIM_OVER_RIGHT:
             lv_anim_set_exec_cb(&a_new, set_x_anim);
             lv_anim_set_values(&a_new, -lv_display_get_horizontal_resolution(d), 0);
             break;
-        case LV_SCR_LOAD_ANIM_OVER_TOP:
+        case LV_SCREEN_LOAD_ANIM_OVER_TOP:
             lv_anim_set_exec_cb(&a_new, set_y_anim);
             lv_anim_set_values(&a_new, lv_display_get_vertical_resolution(d), 0);
             break;
-        case LV_SCR_LOAD_ANIM_OVER_BOTTOM:
+        case LV_SCREEN_LOAD_ANIM_OVER_BOTTOM:
             lv_anim_set_exec_cb(&a_new, set_y_anim);
             lv_anim_set_values(&a_new, -lv_display_get_vertical_resolution(d), 0);
             break;
-        case LV_SCR_LOAD_ANIM_MOVE_LEFT:
+        case LV_SCREEN_LOAD_ANIM_MOVE_LEFT:
             lv_anim_set_exec_cb(&a_new, set_x_anim);
             lv_anim_set_values(&a_new, lv_display_get_horizontal_resolution(d), 0);
 
             lv_anim_set_exec_cb(&a_old, set_x_anim);
             lv_anim_set_values(&a_old, 0, -lv_display_get_horizontal_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_MOVE_RIGHT:
+        case LV_SCREEN_LOAD_ANIM_MOVE_RIGHT:
             lv_anim_set_exec_cb(&a_new, set_x_anim);
             lv_anim_set_values(&a_new, -lv_display_get_horizontal_resolution(d), 0);
 
             lv_anim_set_exec_cb(&a_old, set_x_anim);
             lv_anim_set_values(&a_old, 0, lv_display_get_horizontal_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_MOVE_TOP:
+        case LV_SCREEN_LOAD_ANIM_MOVE_TOP:
             lv_anim_set_exec_cb(&a_new, set_y_anim);
             lv_anim_set_values(&a_new, lv_display_get_vertical_resolution(d), 0);
 
             lv_anim_set_exec_cb(&a_old, set_y_anim);
             lv_anim_set_values(&a_old, 0, -lv_display_get_vertical_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_MOVE_BOTTOM:
+        case LV_SCREEN_LOAD_ANIM_MOVE_BOTTOM:
             lv_anim_set_exec_cb(&a_new, set_y_anim);
             lv_anim_set_values(&a_new, -lv_display_get_vertical_resolution(d), 0);
 
             lv_anim_set_exec_cb(&a_old, set_y_anim);
             lv_anim_set_values(&a_old, 0, lv_display_get_vertical_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_FADE_IN:
+        case LV_SCREEN_LOAD_ANIM_FADE_IN:
             lv_anim_set_exec_cb(&a_new, opa_scale_anim);
             lv_anim_set_values(&a_new, LV_OPA_TRANSP, LV_OPA_COVER);
             break;
-        case LV_SCR_LOAD_ANIM_FADE_OUT:
+        case LV_SCREEN_LOAD_ANIM_FADE_OUT:
             lv_anim_set_exec_cb(&a_old, opa_scale_anim);
             lv_anim_set_values(&a_old, LV_OPA_COVER, LV_OPA_TRANSP);
             break;
-        case LV_SCR_LOAD_ANIM_OUT_LEFT:
+        case LV_SCREEN_LOAD_ANIM_OUT_LEFT:
             lv_anim_set_exec_cb(&a_old, set_x_anim);
             lv_anim_set_values(&a_old, 0, -lv_display_get_horizontal_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_OUT_RIGHT:
+        case LV_SCREEN_LOAD_ANIM_OUT_RIGHT:
             lv_anim_set_exec_cb(&a_old, set_x_anim);
             lv_anim_set_values(&a_old, 0, lv_display_get_horizontal_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_OUT_TOP:
+        case LV_SCREEN_LOAD_ANIM_OUT_TOP:
             lv_anim_set_exec_cb(&a_old, set_y_anim);
             lv_anim_set_values(&a_old, 0, -lv_display_get_vertical_resolution(d));
             break;
-        case LV_SCR_LOAD_ANIM_OUT_BOTTOM:
+        case LV_SCREEN_LOAD_ANIM_OUT_BOTTOM:
             lv_anim_set_exec_cb(&a_old, set_y_anim);
             lv_anim_set_values(&a_old, 0, lv_display_get_vertical_resolution(d));
             break;
@@ -849,21 +915,7 @@ uint32_t lv_display_remove_event_cb_with_user_data(lv_display_t * disp, lv_event
 
 lv_result_t lv_display_send_event(lv_display_t * disp, lv_event_code_t code, void * param)
 {
-
-    lv_event_t e;
-    lv_memzero(&e, sizeof(e));
-    e.code = code;
-    e.current_target = disp;
-    e.original_target = disp;
-    e.param = param;
-    lv_result_t res;
-    res = lv_event_send(&disp->event_list, &e, true);
-    if(res != LV_RESULT_OK) return res;
-
-    res = lv_event_send(&disp->event_list, &e, false);
-    if(res != LV_RESULT_OK) return res;
-
-    return res;
+    return lv_event_push_and_send(&disp->event_list, code, disp, param);
 }
 
 lv_area_t * lv_event_get_invalidated_area(lv_event_t * e)
@@ -1149,6 +1201,7 @@ uint32_t lv_display_get_invalidated_draw_buf_size(lv_display_t * disp, uint32_t 
 
     LV_ASSERT(disp->buf_1 && disp->buf_1->data_size >= buf_size);
     if(disp->buf_2) LV_ASSERT(disp->buf_2->data_size >= buf_size);
+    if(disp->buf_3) LV_ASSERT(disp->buf_3->data_size >= buf_size);
 
     return buf_size;
 }
@@ -1295,11 +1348,11 @@ static void scr_anim_completed(lv_anim_t * a)
 
 static bool is_out_anim(lv_screen_load_anim_t anim_type)
 {
-    return anim_type == LV_SCR_LOAD_ANIM_FADE_OUT  ||
-           anim_type == LV_SCR_LOAD_ANIM_OUT_LEFT  ||
-           anim_type == LV_SCR_LOAD_ANIM_OUT_RIGHT ||
-           anim_type == LV_SCR_LOAD_ANIM_OUT_TOP   ||
-           anim_type == LV_SCR_LOAD_ANIM_OUT_BOTTOM;
+    return anim_type == LV_SCREEN_LOAD_ANIM_FADE_OUT  ||
+           anim_type == LV_SCREEN_LOAD_ANIM_OUT_LEFT  ||
+           anim_type == LV_SCREEN_LOAD_ANIM_OUT_RIGHT ||
+           anim_type == LV_SCREEN_LOAD_ANIM_OUT_TOP   ||
+           anim_type == LV_SCREEN_LOAD_ANIM_OUT_BOTTOM;
 }
 
 static void disp_event_cb(lv_event_t * e)

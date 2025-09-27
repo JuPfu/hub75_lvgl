@@ -18,7 +18,7 @@ void test_xml_label_with_attrs(void)
 {
     lv_obj_t * scr = lv_screen_active();
 
-    const char * textarea1_attrs[] = {
+    const char * label1_attrs[] = {
         "text", "This is the text with ellipses added automatically",
         "long_mode", "dots",
         "width", "100",
@@ -29,10 +29,54 @@ void test_xml_label_with_attrs(void)
         NULL, NULL,
     };
 
-    lv_xml_create(scr, "lv_label", textarea1_attrs);
+    lv_xml_create(scr, "lv_label", label1_attrs);
 
+    static lv_subject_t s1;
+    lv_subject_init_int(&s1, 20);
+    lv_xml_register_subject(NULL, "s1", &s1);
+
+
+    const char * label2_attrs[] = {
+        "bind_text", "s1",
+        "bind_text-fmt", "We have %d users",
+        "y", "10",
+        "x", "5",
+        NULL, NULL,
+    };
+
+    lv_xml_create(scr, "lv_label", label2_attrs);
+
+    static lv_subject_t s2;
+    lv_subject_init_float(&s2, 12.3f);
+    lv_xml_register_subject(NULL, "s2", &s2);
+
+    const char * label3_attrs[] = {
+        "bind_text", "s2",
+        "bind_text-fmt", "We have measured: %0.3f mW",
+        "y", "30",
+        "x", "5",
+        NULL, NULL,
+    };
+
+    lv_xml_create(scr, "lv_label", label3_attrs);
 
     TEST_ASSERT_EQUAL_SCREENSHOT("xml/lv_label.png");
+}
+void test_xml_label_translation_tag(void)
+{
+    static const char * tags[] = {"tiger", NULL};
+    static const char * languages[]    = {"en", "de", "es", NULL};
+    static const char * translations[] = { "The Tiger", "Der Tiger", "El Tigre" };
+    lv_translation_add_static(languages, tags, translations);
+
+    lv_obj_t * scr = lv_screen_active();
+    const char * label1_attrs[] = {
+        "translation_tag", "tiger",
+        NULL, NULL,
+    };
+    lv_obj_t * label = lv_xml_create(scr, "lv_label", label1_attrs);
+    lv_translation_set_language("de");
+    TEST_ASSERT_EQUAL_STRING(lv_label_get_text(label), "Der Tiger");
 }
 
 #endif

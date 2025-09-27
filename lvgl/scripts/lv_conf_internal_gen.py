@@ -63,10 +63,10 @@ fout.write(
 #define LV_STDLIB_RTTHREAD          3
 #define LV_STDLIB_CUSTOM            255
 
-#define LV_DRAW_SW_ASM_NONE         0
-#define LV_DRAW_SW_ASM_NEON         1
-#define LV_DRAW_SW_ASM_HELIUM       2
-#define LV_DRAW_SW_ASM_CUSTOM       255
+#define LV_DRAW_SW_ASM_NONE             0
+#define LV_DRAW_SW_ASM_NEON             1
+#define LV_DRAW_SW_ASM_HELIUM           2
+#define LV_DRAW_SW_ASM_CUSTOM           255
 
 #define LV_NEMA_HAL_CUSTOM          0
 #define LV_NEMA_HAL_STM32           1
@@ -133,9 +133,9 @@ for line in fin.read().splitlines():
     indent = r[1]
 
     name = r[3]
-    name = re.sub(r'\(.*?\)', '', name, 1)    #remove parentheses from macros. E.g. MY_FUNC(5) -> MY_FUNC
+    name = re.sub(r'\(.*?\)', '', name, count=1)    #remove parentheses from macros. E.g. MY_FUNC(5) -> MY_FUNC
 
-    line = re.sub(r'[\s]*', '', line, 1)
+    line = re.sub(r'[\s]*', '', line, count=1)
 
     #If the value should be 1 (enabled) by default use a more complex structure for Kconfig checks because
     #if a not defined CONFIG_... value should be interpreted as 0 and not the LVGL default
@@ -196,6 +196,15 @@ LV_EXPORT_CONST_INT(LV_DRAW_BUF_ALIGN);
 
 #undef LV_KCONFIG_PRESENT
 
+/* Disable VGLite drivers if VGLite drawing is disabled */
+#ifndef LV_USE_VG_LITE_DRIVER
+    #define LV_USE_VG_LITE_DRIVER 0
+#endif
+
+#ifndef LV_USE_VG_LITE_THORVG
+    #define LV_USE_VG_LITE_THORVG 0
+#endif
+
 /* Set some defines if a dependency is disabled. */
 #if LV_USE_LOG == 0
     #define LV_LOG_LEVEL            LV_LOG_LEVEL_NONE
@@ -209,11 +218,40 @@ LV_EXPORT_CONST_INT(LV_DRAW_BUF_ALIGN);
     #define LV_LOG_TRACE_ANIM       0
 #endif  /*LV_USE_LOG*/
 
+#if LV_USE_WAYLAND == 0
+    #define LV_WAYLAND_USE_DMABUF           0
+    #define LV_WAYLAND_WINDOW_DECORATIONS   0
+#endif /* LV_USE_WAYLAND */
+
+#if LV_USE_LINUX_DRM == 0
+    #define LV_LINUX_DRM_USE_EGL     0
+#endif /*LV_USE_LINUX_DRM*/
+
 #if LV_USE_SYSMON == 0
     #define LV_USE_PERF_MONITOR 0
     #define LV_USE_MEM_MONITOR 0
 #endif /*LV_USE_SYSMON*/
 
+#if LV_USE_PERF_MONITOR == 0
+    #define LV_USE_PERF_MONITOR_LOG_MODE 0
+#endif /*LV_USE_PERF_MONITOR*/
+
+#if LV_BUILD_DEMOS == 0
+    #define LV_USE_DEMO_WIDGETS 0
+    #define LV_USE_DEMO_KEYPAD_AND_ENCODER 0
+    #define LV_USE_DEMO_BENCHMARK 0
+    #define LV_USE_DEMO_RENDER 0
+    #define LV_USE_DEMO_STRESS 0
+    #define LV_USE_DEMO_MUSIC 0
+    #define LV_USE_DEMO_VECTOR_GRAPHIC  0
+    #define LV_USE_DEMO_FLEX_LAYOUT     0
+    #define LV_USE_DEMO_MULTILANG       0
+    #define LV_USE_DEMO_TRANSFORM       0
+    #define LV_USE_DEMO_SCROLL          0
+    #define LV_USE_DEMO_EBIKE           0
+    #define LV_USE_DEMO_HIGH_RES        0
+    #define LV_USE_DEMO_SMARTWATCH      0
+#endif /* LV_BUILD_DEMOS */
 
 #ifndef LV_USE_LZ4
     #if (LV_USE_LZ4_INTERNAL || LV_USE_LZ4_EXTERNAL)
@@ -231,9 +269,13 @@ LV_EXPORT_CONST_INT(LV_DRAW_BUF_ALIGN);
     #endif
 #endif
 
+#ifndef LV_USE_EGL
+	#define LV_USE_EGL LV_LINUX_DRM_USE_EGL
+#endif /* LV_USE_EGL */
+
 #if LV_USE_OS
     #if (LV_USE_FREETYPE || LV_USE_THORVG) && LV_DRAW_THREAD_STACK_SIZE < (32 * 1024)
-        #warning "Increase LV_DRAW_THREAD_STACK_SIZE to at least 32KB for FreeType or ThorVG."
+        #error "Increase LV_DRAW_THREAD_STACK_SIZE to at least 32KB for FreeType or ThorVG."
     #endif
 
     #if defined(LV_DRAW_THREAD_STACKSIZE) && !defined(LV_DRAW_THREAD_STACK_SIZE)

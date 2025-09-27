@@ -292,7 +292,7 @@ lv_obj_t * lv_demo_music_main_create(lv_obj_t * parent)
     LV_IMAGE_DECLARE(img_lv_demo_music_logo);
     lv_obj_t * logo = lv_image_create(lv_screen_active());
     lv_image_set_src(logo, &img_lv_demo_music_logo);
-    lv_obj_move_foreground(logo);
+    lv_obj_move_to_index(logo, -1);
     lv_obj_align_to(logo, spectrum_obj, LV_ALIGN_CENTER, 0, 0);
 
 #if LV_DEMO_MUSIC_SQUARE == 0 && LV_DEMO_MUSIC_ROUND == 0
@@ -699,7 +699,7 @@ static void track_load(uint32_t id)
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, album_image_obj);
-    lv_anim_set_values(&a, lv_obj_get_style_image_opa(album_image_obj, 0), LV_OPA_TRANSP);
+    lv_anim_set_values(&a, lv_obj_get_style_image_opa(album_image_obj, LV_PART_MAIN), LV_OPA_TRANSP);
     lv_anim_set_exec_cb(&a, album_fade_anim_cb);
     lv_anim_set_duration(&a, 500);
     lv_anim_start(&a);

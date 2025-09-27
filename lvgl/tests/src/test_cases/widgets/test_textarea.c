@@ -66,6 +66,23 @@ void test_textarea_cursor_click_pos_field_update(void)
     TEST_ASSERT_FALSE(lv_textarea_get_cursor_click_pos(textarea));
 }
 
+void test_textarea_should_scroll_to_the_end(void)
+{
+    lv_textarea_set_one_line(textarea, true);
+    lv_textarea_add_text(textarea, "Hi this is a long text to test if the textarea scrolls to the end");
+    lv_obj_set_width(textarea, LV_DPI_DEF * 3);
+
+    int32_t cur_pos = (int32_t)lv_textarea_get_cursor_pos(textarea);
+    const lv_font_t * font = lv_obj_get_style_text_font(textarea, LV_PART_MAIN);
+    int32_t font_h = lv_font_get_line_height(font);
+    int32_t w = lv_obj_get_content_width(textarea);
+    if(cur_pos + font_h - lv_obj_get_scroll_left(textarea) > w) {
+        TEST_ASSERT_EQUAL_INT32(lv_obj_get_scroll_x(textarea) + 10, cur_pos - w + font_h);
+    }
+
+    TEST_ASSERT(lv_textarea_get_one_line(textarea));
+}
+
 void test_textarea_should_update_placeholder_text(void)
 {
     const char * new_placeholder = "LVGL Rocks!!!!!";
@@ -142,72 +159,72 @@ void test_textarea_properties(void)
 
     prop.id = LV_PROPERTY_TEXTAREA_TEXT;
     prop.ptr = "Hello World!";
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_STRING("Hello World!", lv_textarea_get_text(obj));
     TEST_ASSERT_EQUAL_STRING("Hello World!", lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_TEXT).ptr);
 
     prop.id = LV_PROPERTY_TEXTAREA_PLACEHOLDER_TEXT;
     prop.ptr = "Hello!";
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_STRING("Hello!", lv_textarea_get_placeholder_text(obj));
     TEST_ASSERT_EQUAL_STRING("Hello!", lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_PLACEHOLDER_TEXT).ptr);
 
     prop.id = LV_PROPERTY_TEXTAREA_CURSOR_POS;
     prop.num = 5;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(5, lv_textarea_get_cursor_pos(obj));
     TEST_ASSERT_EQUAL_INT(5, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_CURSOR_POS).num);
 
     prop.id = LV_PROPERTY_TEXTAREA_CURSOR_CLICK_POS;
     prop.num = 1;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(1, lv_textarea_get_cursor_click_pos(obj));
     TEST_ASSERT_EQUAL_INT(1, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_CURSOR_CLICK_POS).num);
 
     prop.id = LV_PROPERTY_TEXTAREA_PASSWORD_MODE;
     prop.num = true;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_TRUE(lv_textarea_get_password_mode(obj));
     TEST_ASSERT_TRUE(lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_PASSWORD_MODE).num);
 
     prop.id = LV_PROPERTY_TEXTAREA_PASSWORD_BULLET;
     prop.ptr = "password bullet";
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_STRING("password bullet", lv_textarea_get_password_bullet(obj));
     TEST_ASSERT_EQUAL_STRING("password bullet", lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_PASSWORD_BULLET).ptr);
 
     prop.id = LV_PROPERTY_TEXTAREA_ONE_LINE;
     prop.enable = true;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(true, lv_textarea_get_one_line(obj));
     TEST_ASSERT_EQUAL_INT(true, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_ONE_LINE).enable);
 
     prop.id = LV_PROPERTY_TEXTAREA_ACCEPTED_CHARS;
     prop.ptr = "ABCDEF";
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_STRING("ABCDEF", lv_textarea_get_accepted_chars(obj));
     TEST_ASSERT_EQUAL_STRING("ABCDEF", lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_ACCEPTED_CHARS).ptr);
 
     prop.id = LV_PROPERTY_TEXTAREA_MAX_LENGTH;
     prop.num = 10;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(10, lv_textarea_get_max_length(obj));
     TEST_ASSERT_EQUAL_INT(10, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_MAX_LENGTH).num);
 
     prop.id = LV_PROPERTY_TEXTAREA_INSERT_REPLACE;
     prop.ptr = "abcdef";
     /*No getter function for this property*/
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
 
     prop.id = LV_PROPERTY_TEXTAREA_TEXT_SELECTION;
     prop.num = true;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(true, lv_textarea_get_text_selection(obj));
     TEST_ASSERT_EQUAL_INT(true, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_TEXT_SELECTION).enable);
 
     prop.id = LV_PROPERTY_TEXTAREA_PASSWORD_SHOW_TIME;
     prop.num = 10;
-    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RES_OK);
+    TEST_ASSERT_TRUE(lv_obj_set_property(obj, &prop) == LV_RESULT_OK);
     TEST_ASSERT_EQUAL_INT(10, lv_textarea_get_password_show_time(obj));
     TEST_ASSERT_EQUAL_INT(10, lv_obj_get_property(obj, LV_PROPERTY_TEXTAREA_PASSWORD_SHOW_TIME).num);
 #endif

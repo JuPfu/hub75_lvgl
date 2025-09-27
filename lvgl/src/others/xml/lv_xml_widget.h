@@ -16,7 +16,6 @@ extern "C" {
 #include "../../misc/lv_types.h"
 #if LV_USE_XML
 
-#include "lv_xml.h"
 #include "lv_xml_utils.h"
 
 /**********************
@@ -42,6 +41,7 @@ lv_result_t lv_xml_widget_register(const char * name, lv_xml_widget_create_cb_t 
 
 lv_widget_processor_t * lv_xml_widget_get_processor(const char * name);
 
+lv_widget_processor_t * lv_xml_widget_get_extended_widget_processor(const char * extends);
 /**********************
  *      MACROS
  **********************/

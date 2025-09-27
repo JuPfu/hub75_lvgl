@@ -114,6 +114,9 @@ typedef enum {
 
     LV_EVENT_VSYNC,
     LV_EVENT_VSYNC_REQUEST,
+#if LV_USE_TRANSLATION
+    LV_EVENT_TRANSLATION_LANGUAGE_CHANGED, /**< Sent when the translation language changed. */
+#endif /*LV_USE_TRANSLATION*/
 
     LV_EVENT_LAST,                 /** Number of default events */
 
@@ -196,11 +199,26 @@ void * lv_event_get_user_data(lv_event_t * e);
 void lv_event_stop_bubbling(lv_event_t * e);
 
 /**
+ * Stop event from trickling down to children.
+ * This is only valid when called in the middle of an event processing chain.
+ * @param e     pointer to the event descriptor
+ */
+void lv_event_stop_trickling(lv_event_t * e);
+
+/**
  * Stop processing this event.
  * This is only valid when called in the middle of an event processing chain.
  * @param e     pointer to the event descriptor
  */
 void lv_event_stop_processing(lv_event_t * e);
+
+/**
+ * Helper function typically used in LV_EVENT_DELETE
+ * to free the event's user_data
+ * @param e     pointer to an event descriptor
+ */
+void lv_event_free_user_data_cb(lv_event_t * e);
+
 
 /**
  * Register a new, custom event ID.

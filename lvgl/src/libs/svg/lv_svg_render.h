@@ -36,7 +36,7 @@ typedef struct _lv_svg_render_obj {
     lv_svg_tag_t tag;
     uint32_t flags;
     char * id;
-    lv_vector_draw_dsc_t dsc;
+    lv_vector_path_ctx_t dsc;
     lv_matrix_t matrix;
 
     /* for url(XXX) reference */
@@ -47,12 +47,12 @@ typedef struct _lv_svg_render_obj {
 } lv_svg_render_obj_t;
 
 typedef struct _lv_svg_render_class {
-    void (*set_paint_ref)(struct _lv_svg_render_obj * obj, lv_vector_draw_dsc_t * dsc,
+    void (*set_paint_ref)(struct _lv_svg_render_obj * obj, lv_vector_path_ctx_t * dsc,
                           const struct _lv_svg_render_obj * target_obj, bool fill);
 
     void (*init)(struct _lv_svg_render_obj * obj, const lv_svg_node_t * node);
-    void (*render)(const struct _lv_svg_render_obj * obj, lv_vector_dsc_t * dsc, const lv_matrix_t * matrix);
-    void (*set_attr)(struct _lv_svg_render_obj * obj, lv_vector_draw_dsc_t * dsc, const lv_svg_attr_t * attr);
+    void (*render)(const struct _lv_svg_render_obj * obj, lv_draw_vector_dsc_t * dsc, const lv_matrix_t * matrix);
+    void (*set_attr)(struct _lv_svg_render_obj * obj, lv_vector_path_ctx_t * dsc, const lv_svg_attr_t * attr);
     void (*get_bounds)(const struct _lv_svg_render_obj * obj, lv_area_t * area);
     void (*get_size)(const struct _lv_svg_render_obj * obj, uint32_t * size);
     void (*destroy)(struct _lv_svg_render_obj * obj);
@@ -94,11 +94,20 @@ void lv_svg_render_delete(lv_svg_render_obj_t * render);
 uint32_t lv_svg_render_get_size(const lv_svg_render_obj_t * render);
 
 /**
+ * @brief Get viewport's width and height of the render object
+ * @param render pointer to the SVG render object
+ * @param width pointer to save the width of the viewport of the SVG render object
+ * @param height pointer to save the height of the viewport of the SVG render object
+ * @return lv_result_t, LV_RESULT_OK if success, LV_RESULT_INVALID if fail
+ */
+lv_result_t lv_svg_render_get_viewport_size(const lv_svg_render_obj_t * render, float * width, float * height);
+
+/**
  * @brief Render an SVG object to a vector graphics
  * @param dsc pointer to the vector graphics descriptor
  * @param render pointer to the SVG render object to render
  */
-void lv_draw_svg_render(lv_vector_dsc_t * dsc, const lv_svg_render_obj_t * render);
+void lv_draw_svg_render(lv_draw_vector_dsc_t * dsc, const lv_svg_render_obj_t * render);
 
 /**
  * @brief Draw an SVG document to a layer

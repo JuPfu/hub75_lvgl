@@ -15,7 +15,7 @@ The Calendar Widget is a classic calendar which can:
 - highlight any user-defined dates.
 
 The Calendar is added to the default group (if one is set). Calendar is
-an editable Widget which allow selecting and clicking the dates with
+an editable Widget which allows selecting and clicking the dates with
 encoder or keyboard navigation as well as pointer-type input devices.
 
 To make the Calendar flexible, by default it does not show the current
@@ -134,7 +134,7 @@ Events
 Keys
 ****
 
--  ``LV_KEY_RIGHT/UP/LEFT/RIGHT`` To navigate among the buttons to dates
+-  ``LV_KEY_DOWN/UP/LEFT/RIGHT`` To navigate among the buttons to dates
 -  :cpp:enumerator:`LV_KEY_ENTER` To press/release the selected date
 
 .. admonition::  Further Reading
@@ -154,14 +154,14 @@ the API of the headers has been changed.**
 Arrow buttons
 -------------
 
-:cpp:expr:`lv_calendar_header_arrow_create(calendar)` creates a header that
+:cpp:expr:`lv_calendar_add_header_arrow(calendar)` creates a header that
 contains a left and right arrow on the sides and text between the arrows showing the
 current year and month.
 
 Drop-down
 ---------
 
-:cpp:expr:`lv_calendar_header_dropdown_create(calendar)` creates a header that
+:cpp:expr:`lv_calendar_add_header_dropdown(calendar)` creates a header that
 contains 2 Drop-Drown List Widgets for the year and month.
 
 .. _lv_calendar_example:

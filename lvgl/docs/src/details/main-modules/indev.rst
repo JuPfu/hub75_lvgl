@@ -181,7 +181,7 @@ Multi-touch gestures overview
 
 To recognize multi touch gestures, recognizers are used. The structure ``lv_indev_t`` contains
 an array of recognizers, one per gesture type. These recognizers are initialized internally by ``lv_indev_create`` by calling
-``lv_indev_gesture_init_recognizers`` after the indev device is created. The the recognizers can then be configured to
+``lv_indev_gesture_init_recognizers`` after the indev device is created. The recognizers can then be configured to
 modify the gestures thresholds. These thresholds are used to be able to recognize the gesture only after the threshold
 have been reached. They can be set-up like this:
 
@@ -194,7 +194,7 @@ This must be done in the user defined indev ``read_cb``. This will iterate over 
 recognized or ended gesture. For now only one multi-touch gesture can be recognized/ended at a time.
 
 Once the recognizers are updated, calling ``lv_indev_gesture_recognizers_set_data`` will update the ``lv_indev_data_t`` structure.
-It is meant to be done in the indev ``read_cb``. This allows the future ``lv_event_t`` to eb filled with multi-touch gesture info.
+It is meant to be done in the indev ``read_cb``. This allows the future ``lv_event_t`` to be filled with multi-touch gesture info.
 
 Here is an example of the ``read_cb``:
 
@@ -397,7 +397,7 @@ device *when* the knob is being turned, and *in which direction*.
 With an encoder your application can receive events from the following:
 
 1.  press of its button,
-2.  oong-press of its button,
+2.  long-press of its button,
 3.  turn left, and
 4.  turn right.
 
@@ -549,7 +549,7 @@ Using Buttons with Encoder Logic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In addition to standard encoder behavior, you can also utilize its logic
-to navigate(focus) and edit widgets using buttons. This is especially
+to navigate (focus) and edit widgets using buttons. This is especially
 handy if you have only few buttons available, or you want to use other
 buttons in addition to an encoder wheel.
 
@@ -558,7 +558,7 @@ You need to have 3 buttons available:
 - :cpp:enumerator:`LV_KEY_ENTER`: will simulate press or pushing of the encoder button.
 - :cpp:enumerator:`LV_KEY_LEFT`: will simulate turning encoder left.
 - :cpp:enumerator:`LV_KEY_RIGHT`: will simulate turning encoder right.
-- other keys will be passed to the focused widget.
+- Other keys will be passed to the focused widget.
 
 If you hold the keys it will simulate an encoder advance with period
 specified in ``indev_drv.long_press_repeat_time``.
@@ -639,14 +639,6 @@ The default value of the following parameters can be changed in :cpp:type:`lv_in
   can be changed by calling ``lv_timer_...()`` functions. :c:macro:`LV_DEF_REFR_PERIOD`
   in ``lv_conf.h`` sets the default read period.
 
-Feedback
---------
-
-Besides ``read_cb`` a ``feedback_cb`` callback can be also specified in
-:cpp:type:`lv_indev_t`. ``feedback_cb`` is called when any type of event is sent
-by input devices (independently of their type).  This allows generating
-feedback for the user, e.g. to play a sound on :cpp:enumerator:`LV_EVENT_CLICKED`.
-
 Buffered Reading
 ----------------
 
@@ -659,6 +651,13 @@ that buffers measured data. In ``read_cb`` you can report the buffered
 data instead of directly reading the input device. Setting the
 ``data->continue_reading`` flag will tell LVGL there is more data to
 read and it should call ``read_cb`` again.
+
+If the driver can provide precise timestamps for buffered events, it can
+overwrite ``data->timestamp``. By default, this is initialized to
+:cpp:func:`lv_tick_get()` just before invoking ``read_cb``.
+
+
+.. _indev event mode:
 
 Switching the Input Device to Event-Driven Mode
 -----------------------------------------------
@@ -683,6 +682,64 @@ You can do this by:
 .. note:: :cpp:func:`lv_indev_read`, :cpp:func:`lv_timer_handler` and :cpp:func:`_lv_display_refr_timer` cannot run at the same time.
 
 .. note:: For devices in event-driven mode, `data->continue_reading` is ignored.
+
+
+Pausing the Indev Timer
+-----------------------
+
+It's not always possible to take an indev reading directly inside
+a raw interrupt handler. Typically a flag would be set inside the interrupt handler
+which would be checked and reset inside the indev read callback where the reading
+would actually be taken. This works fine, but the indev read callback is constantly
+"polling" a flag which may go for long periods unset. We cannot use :ref:`indev event mode`
+because :cpp:func:`lv_indev_read` should not be called in an interrupt handler.
+
+For this situation you can use the timer-based indev read callback as usual but
+pause the indev timer if there hasn't been an interrupt in a while.
+Resuming a timer is typically safe in an interrupt handler.
+Care must be taken to avoid race conditions.
+
+.. code-block:: c
+
+    volatile bool interrupt_occurred;
+    lv_timer_t * volatile indev_timer;
+
+    void interrupt_handler(void)
+    {
+        interrupt_occurred = true;
+        if(indev_timer) lv_timer_resume(indev_timer);
+    }
+
+    uint32_t last_interrupt_tick;
+
+    void my_input_read(lv_indev_t * indev, lv_indev_data_t * data)
+    {
+        uint32_t tick_now = lv_tick_get();
+
+        /* if no interrupt has happened in the past 100 ms, pause the indev timer */
+        if(lv_tick_diff(tick_now, last_interrupt_tick) > 100) {
+            lv_timer_pause(indev_timer);
+        }
+
+        if(interrupt_occurred) {
+            interrupt_occurred = false;
+            last_interrupt_tick = tick_now;
+            /* 
+             * Ensure the timer is running in case an interrupt occurred
+             * just after the timer was paused. Without this, a race condition
+             * could leave the timer paused and input events would not be processed.
+             */
+            lv_timer_resume(indev_timer);
+        }
+
+        /* perform the reading */
+        /* ... */
+    }
+
+.. code-block:: c
+
+    /* in your setup code */
+    indev_timer = lv_indev_get_read_timer(indev);
 
 
 .. admonition::  Further Reading

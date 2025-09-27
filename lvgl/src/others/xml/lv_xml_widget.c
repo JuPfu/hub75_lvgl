@@ -53,6 +53,7 @@ lv_result_t lv_xml_widget_register(const char * name, lv_xml_widget_create_cb_t 
         p->next = widget_processor_head;
         widget_processor_head = p;
     }
+
     return LV_RESULT_OK;
 }
 
@@ -61,15 +62,46 @@ lv_widget_processor_t * lv_xml_widget_get_processor(const char * name)
     /* Select the widget specific parser type based on the name */
     lv_widget_processor_t * p = widget_processor_head;
     while(p) {
-        if(lv_streq(p->name, name)) {
-            return p;
-        }
-
+        if(lv_streq(p->name, name)) return p;
         p = p->next;
     }
+
+    /* If not found try with "lv_obj-" prefix, as lv_obj elements works without explicit prefix too*/
+    char buf[256];
+    lv_snprintf(buf, sizeof(buf), "lv_obj-%s", name);
+    p = widget_processor_head;
+    while(p) {
+        if(lv_streq(p->name, buf)) return p;
+        p = p->next;
+    }
+
     return NULL;
 }
 
+lv_widget_processor_t * lv_xml_widget_get_extended_widget_processor(const char * extends)
+{
+    lv_widget_processor_t * proc = NULL;
+    while(extends) {
+        proc = lv_xml_widget_get_processor(extends);
+        if(proc) break;
+
+        lv_xml_component_scope_t * extended_component = lv_xml_component_get_scope(extends);
+        if(extended_component) {
+            extends = extended_component->extends;
+        }
+        else {
+            /*Not extending a known component or widget.*/
+            break;
+        }
+    }
+
+    if(proc == NULL) {
+        LV_LOG_WARN("The 'extend'ed widget is not found, using `lv_obj` as a fall back");
+        proc = lv_xml_widget_get_processor("lv_obj");
+    }
+
+    return proc;
+}
 
 /**********************
  *   STATIC FUNCTIONS

@@ -41,8 +41,8 @@ value is interpreted in a range (minimum and maximum values) which can
 be modified with :cpp:expr:`lv_arc_set_range(arc, min, max)`. The default range
 is 0..100.
 
-The indicator Arc is drawn on the main part's Arc. This if the value is
-set to maximum the indicator Arc will cover the entire "background" Arc.
+The indicator Arc is drawn on the main part's Arc. Thus, if the value is
+set to maximum, the indicator Arc will cover the entire "background" Arc.
 To set the start and end angle of the background Arc use any of these functions:
 
 - :cpp:expr:`lv_arc_set_bg_start_angle(arc, angle)`
@@ -140,6 +140,22 @@ used to rotate the Widget to the current value of the Arc.
 
 A typical use case is to call these functions in the ``VALUE_CHANGED``
 event of the Arc.
+
+Data binding
+------------
+
+To get familiar with observers, subjects, and data bindings in general visit the
+:ref:`Observer <observer_how_to_use>` page.
+
+This method of subscribing to an integer Subject affects an Arc Widget's integer
+value directly.  Note that this is a two-way binding (Subject <===> Widget), so an end
+user's direct interaction with the Arc Widget updates the Subject's value and vice
+versa.
+
+It supports integer subjects and, when ``LV_USE_FLOAT`` is enabled, float subjects.
+
+
+- :cpp:expr:`lv_arc_bind_value(arc, &subject)`
 
 
 .. _lv_arc_events:

@@ -16,7 +16,7 @@ View is built from other Widgets:
 - Container for the tabs: :ref:`base_widget`
 - Content of the tabs: :ref:`base_widget`
 
-The tab buttons can be positioned on the top, bottom, left and right
+The tab buttons can be positioned on the top, bottom, left, and right
 side of the Tab View.
 
 A new tab can be selected either by clicking on a tab button or by
@@ -77,7 +77,7 @@ the tab bar can be moved to any side.
 Setting tab bar size
 --------------------
 
-The size of the tab bar can be adjusted by :cpp:expr:`lv_tabview_set_tab_bar_size(tabview, size)`
+The size of the tab bar can be adjusted by :cpp:expr:`lv_tabview_set_tab_bar_size(tabview, size)`.
 When tabs are on the top or bottom, this means the height of the tab bar, and when
 they are on the sides, it means the width.
 

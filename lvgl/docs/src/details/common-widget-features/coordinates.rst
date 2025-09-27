@@ -395,8 +395,8 @@ complex features can be used via styles.
 
 .. _coord_translation:
 
-Translation
-***********
+Coordinate Translation
+**********************
 
 Let's say the there are 3 buttons next to each other. Their position is
 set as described above. Now you want to move a button up a little when
@@ -447,17 +447,17 @@ work as expected. Translations can be used to solve this:
    lv_obj_add_style(btn3, &style_normal, LV_STATE_DEFAULT);
    lv_obj_add_style(btn3, &style_pressed, LV_STATE_PRESSED);
 
-Translation is applied from the current position of the Widget.
+Coordinate translation is applied from the current position of the Widget.
 
-Percentage values can be used in translations as well. The percentage is
+Percentage values can be used in coordinate translations as well. The percentage is
 relative to the size of the Widget (and not to the size of the parent).
 For example :cpp:expr:`lv_pct(50)` will move the Widget with half of its
 width/height.
 
-The translation is applied after the layouts are calculated. Therefore,
+The coordinate translation is applied after the layouts are calculated. Therefore,
 even laid out Widgets' position can be translated.
 
-The translation actually moves the Widget. That means it makes the
+The coordinate translation actually moves the Widget. That means it makes the
 scrollbars and :c:macro:`LV_SIZE_CONTENT` sized Widgets react to the position
 change.
 
@@ -504,7 +504,7 @@ especially useful if the size is set by percentage or
 
    static lv_style_t style_max_height;
    lv_style_init(&style_max_height);
-   lv_style_set_y(&style_max_height, 200);
+   lv_style_set_max_height(&style_max_height, 200);
 
    lv_obj_set_height(widget, lv_pct(100));
    lv_obj_add_style(widget, &style_max_height, LV_STATE_DEFAULT); //Limit the  height to 200 px
@@ -516,7 +516,7 @@ the parent's content area.
 
    static lv_style_t style_max_height;
    lv_style_init(&style_max_height);
-   lv_style_set_y(&style_max_height, lv_pct(50));
+   lv_style_set_max_height(&style_max_height, lv_pct(50));
 
    lv_obj_set_height(widget, lv_pct(100));
    lv_obj_add_style(widget, &style_max_height, LV_STATE_DEFAULT); //Limit the height to half parent height

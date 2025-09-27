@@ -1,5 +1,5 @@
 /**
- * @file lv_xml.c
+ * @file lv_xml_parser.c
  *
  */
 
@@ -43,7 +43,7 @@ void lv_xml_parser_state_init(lv_xml_parser_state_t * state)
 {
     lv_memzero(state, sizeof(lv_xml_parser_state_t));
     lv_ll_init(&state->parent_ll, sizeof(lv_obj_t *));
-    lv_xml_component_ctx_init(&state->ctx);
+    lv_xml_component_scope_init(&state->scope);
 }
 
 void lv_xml_parser_start_section(lv_xml_parser_state_t * state, const char * name)
@@ -79,6 +79,14 @@ void lv_xml_parser_start_section(lv_xml_parser_state_t * state, const char * nam
     }
     else if(lv_streq(name, "subjects")) {
         state->section = LV_XML_PARSER_SECTION_SUBJECTS;
+        return;
+    }
+    else if(lv_streq(name, "animation")) {
+        state->section = LV_XML_PARSER_SECTION_ANIMATION;
+        return;
+    }
+    else if(lv_streq(name, "timeline")) {
+        state->section = LV_XML_PARSER_SECTION_TIMELINE;
         return;
     }
     else if(lv_streq(name, "view")) {

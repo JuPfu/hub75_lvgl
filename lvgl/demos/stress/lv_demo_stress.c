@@ -209,7 +209,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             obj = lv_dropdown_create(main_page);
             lv_dropdown_set_options(obj, "Zero\nOne\nTwo\nThree\nFour\nFive\nSix\nSeven\nEight");
             lv_dropdown_open(obj);
-            lv_dropdown_set_selected(obj, 2, LV_ANIM_ON);
+            lv_dropdown_set_selected(obj, 2);
             auto_delete(obj, LV_DEMO_STRESS_TIME_STEP * 3 + 11);
             break;
 
@@ -388,7 +388,8 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             lv_obj_add_state(obj, LV_STATE_CHECKED);
 
             obj = lv_checkbox_create(main_page);
-            lv_obj_add_state(obj, LV_STATE_CHECKED | LV_STATE_DISABLED);
+            lv_obj_add_state(obj, LV_STATE_CHECKED);
+            lv_obj_add_state(obj, LV_STATE_DISABLED);
             auto_delete(obj, LV_DEMO_STRESS_TIME_STEP * 1 + 60);
 
             lv_obj_scroll_by(main_page, 0, 20, LV_ANIM_ON);

@@ -132,7 +132,7 @@ typedef union {
  *
  * Props are split into groups of 16. When adding a new prop to a group, ensure it does not overflow into the next one.
  */
-enum {
+enum _lv_style_id_t {
     LV_STYLE_PROP_INV               = 0,
 
     /*Group 0*/
@@ -362,6 +362,19 @@ void lv_style_reset(lv_style_t * style);
  * @param src   the source style to copy from.
  */
 void lv_style_copy(lv_style_t * dst, const lv_style_t * src);
+
+/**
+ * Copy all properties of a style to an other without resetting the dst style.
+ * It has the same effect as calling the same `lv_set_style_...`
+ * functions on both styles.
+ * It means new memory will be allocated to store the properties in
+ * the destination style.
+ * After the copy the destination style is fully independent of the source
+ * and source can removed without affecting the destination style.
+ * @param dst   the destination to copy into (cannot be a constant style)
+ * @param src   the source style to copy from.
+ */
+void lv_style_merge(lv_style_t * dst, const lv_style_t * src);
 
 
 /**

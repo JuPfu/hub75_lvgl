@@ -87,7 +87,7 @@ the options string's contents must remain available for the life of the Drop-Dow
 List and :cpp:func:`lv_dropdown_add_option` cannot be used.
 
 You can select an option programmatically with
-:cpp:expr:`lv_dropdown_set_selected(dropdown, id, LV_ANIM_ON/LV_ANIM_OFF)`, where ``id`` is the index of
+:cpp:expr:`lv_dropdown_set_selected(dropdown, id)`, where ``id`` is the index of
 the target option.
 
 Get selected option
@@ -131,6 +131,21 @@ Programmatically open/close
 To programmatically open or close the Drop-Down List use
 :cpp:expr:`lv_dropdown_open(dropdown)` or :cpp:expr:`lv_dropdown_close(dropdown)`.
 
+
+Data binding
+------------
+
+To get familiar with observers, subjects, and data bindings in general visit the
+:ref:`Observer <observer_how_to_use>` page.
+
+This method of subscribing to an integer Subject affects a Drop-Down Widget's integer
+value directly.  Note that this is a two-way binding (Subject <===> Widget) so an end
+user's direct interaction with the Drop-Down Widget updates the Subject's value and
+vice versa.
+
+It support only integer Subjects.
+
+- :cpp:expr:`lv_dropdown_bind_value(dropdown, &subject)`
 
 
 .. _lv_dropdown_events:

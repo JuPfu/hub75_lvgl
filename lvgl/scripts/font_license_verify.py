@@ -13,24 +13,33 @@ except ImportError:
 
 # Fonts that are excluded from the license check
 # Only add fonts that are known to be public domain or have a compatible license
-_EXCLUDED_FONTS = {}
+_EXCLUDED_FONTS = {
+    "OpenTypeTest GPOS One",
+}
 
 # Font name mapping to remove any style suffix
 _FONT_NAME_MAP = {
     "Montserrat Medium": "Montserrat",
     "Montserrat SemiBold": "Montserrat",
     "Montserrat Bold": "Montserrat",
+    "Montserrat Regular": "Montserrat",
     "Source Han Sans SC Normal": "Source Han Sans SC",
+    "Font Awesome 5 Free Solid": "Font Awesome",
+    "Lato Regular": "Lato",
+    "Noto Sans SC Regular": "Noto Sans SC",
 }
 
 
 def get_font_full_name(font_path: str) -> str:
     font = TTFont(font_path)
     name_records = font["name"].names
+    fallback = None
     for record in name_records:
+        if record.nameID == 1:  # ID 1 corresponds to the font family name and will be used if full name doesn't exists
+            fallback = record.toStr()
         if record.nameID == 4:  # ID 4 corresponds to the full font name
             return record.toStr()
-    return None
+    return fallback
 
 
 def list_intree_fonts(path: str) -> List[Tuple[str, str]]:

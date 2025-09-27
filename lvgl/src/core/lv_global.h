@@ -27,7 +27,7 @@ extern "C" {
 #include "../misc/lv_log.h"
 #include "../misc/lv_style.h"
 #include "../misc/lv_timer.h"
-#include "../osal/lv_os.h"
+#include "../osal/lv_os_private.h"
 #include "../others/sysmon/lv_sysmon.h"
 #include "../stdlib/builtin/lv_tlsf.h"
 
@@ -73,9 +73,7 @@ struct _snippet_stack;
 struct _lv_freetype_context_t;
 #endif
 
-#if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
 struct _lv_profiler_builtin_ctx_t;
-#endif
 
 #if LV_USE_NUTTX
 struct _lv_nuttx_ctx_t;
@@ -122,6 +120,10 @@ typedef struct _lv_global_t {
                                                             * can be managed by image cache. */
 
     lv_ll_t img_decoder_ll;
+#if LV_USE_OS != LV_OS_NONE
+    lv_mutex_t img_decoder_info_lock;
+    lv_mutex_t img_decoder_open_lock;
+#endif
 
     lv_cache_t * img_cache;
     lv_cache_t * img_header_cache;
@@ -191,6 +193,10 @@ typedef struct _lv_global_t {
     lv_fs_drv_t arduino_sd_fs_drv;
 #endif
 
+#if LV_USE_FS_FROGFS
+    lv_fs_drv_t frogfs_fs_drv;
+#endif
+
 #if LV_USE_FREETYPE
     struct _lv_freetype_context_t * ft_context;
 #endif
@@ -203,9 +209,12 @@ typedef struct _lv_global_t {
     struct _snippet_stack * span_snippet_stack;
 #endif
 
-#if LV_USE_PROFILER && LV_USE_PROFILER_BUILTIN
+    /**
+     * Since LV_USE_PROFILER is an option that needs to be turned on and off
+     * frequently, this pointer is always reserved as a placeholder to prevent the
+     * lv_global_t size mismatch affecting the static library.
+     */
     struct _lv_profiler_builtin_ctx_t * profiler_context;
-#endif
 
 #if LV_USE_FILE_EXPLORER != 0
     lv_style_t fe_list_button_style;
@@ -228,6 +237,11 @@ typedef struct _lv_global_t {
     lv_test_state_t test_state;
 #endif
 
+#if LV_USE_TRANSLATION
+    lv_ll_t translation_packs_ll;
+    const char * translation_selected_lang;
+#endif
+
 #if LV_USE_NUTTX
     struct _lv_nuttx_ctx_t * nuttx_ctx;
 #endif
@@ -236,6 +250,10 @@ typedef struct _lv_global_t {
     lv_mutex_t lv_general_mutex;
 #if defined(__linux__)
     lv_proc_stat_t linux_last_proc_stat;
+#if defined LV_SYSMON_PROC_IDLE_AVAILABLE
+    uint64_t linux_last_self_proc_time_ticks;
+    lv_proc_stat_t linux_last_system_total_ticks_stat;
+#endif
 #endif
 #endif
 
@@ -248,6 +266,16 @@ typedef struct _lv_global_t {
 
 #if LV_USE_EVDEV
     lv_evdev_discovery_t * evdev_discovery;
+#endif
+
+#if LV_USE_XML
+    const char * xml_path_prefix;
+    uint32_t lv_event_xml_store_timeline;
+    lv_ll_t xml_loads;
+#endif
+
+#if LV_USE_DRAW_EVE
+    lv_draw_eve_unit_t * draw_eve_unit;
 #endif
 
     void * user_data;

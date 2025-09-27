@@ -14,8 +14,8 @@ static void scroll_update_cb(lv_event_t * e)
 {
     LV_UNUSED(e);
 
-    LV_LOG("scroll info: x:%3"LV_PRId32", y:%3"LV_PRId32", top:%3"LV_PRId32", "
-           "bottom:%3"LV_PRId32", left:%3"LV_PRId32", right:%3"LV_PRId32"\n",
+    LV_LOG("scroll info: x:%3" LV_PRId32", y:%3" LV_PRId32", top:%3" LV_PRId32", "
+           "bottom:%3" LV_PRId32", left:%3" LV_PRId32", right:%3" LV_PRId32"\n",
            lv_obj_get_scroll_x(panel),
            lv_obj_get_scroll_y(panel),
            lv_obj_get_scroll_top(panel),
@@ -78,8 +78,8 @@ void lv_example_scroll_1(void)
     lv_label_set_text(label, "Bottom");
     lv_obj_center(label);
 
-    /* When LV_OBJ_FLAG_SCROLL_ELASTIC is cleared, scrolling does not go past edge bounaries. */
-    /* lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLL_ELASTIC); */
+    /* When LV_OBJ_FLAG_SCROLL_ELASTIC is cleared, scrolling does not go past edge boundaries. */
+    /* lv_obj_remove_flag(panel, LV_OBJ_FLAG_SCROLL_ELASTIC); */
 
     /* Call `scroll_update_cb` while panel is being scrolled. */
     lv_obj_add_event_cb(panel, scroll_update_cb, LV_EVENT_SCROLL, NULL);

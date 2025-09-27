@@ -20,7 +20,7 @@ How Many Displays Can LVGL Use?
 
 LVGL can use any number of displays.  It is only limited by available RAM and MCU time.
 
-Why would you want multi-display support?  Here are some examples:
+Why would you want multi-display support? Here are some examples:
 
 - Have a "normal" TFT display with local UI and create "virtual" screens on VNC
   on demand. (You need to add your VNC driver.)
@@ -52,7 +52,7 @@ it is representing, as well as other things relevant to its lifetime:
 - The :ref:`draw_buffers` assigned to it
 - The :ref:`flush_callback` function that moves pixels from :ref:`draw_buffers` to Display hardware
 - What areas of the display have been updated (made "dirty") so rendering logic can
-  compute what to render during a :ref:`display refresh <basic_data_flow>`
+  compute what to render during a display refresh
 - Optional custom pointer as :ref:`display_user_data`
 
 

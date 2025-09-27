@@ -32,7 +32,7 @@ The main callback called during an Animation (when it is playing) is called an
 This prototype makes it easy to use most of the LVGL *set* functions directly or via a trivial wrapper. It includes:
 
   - most of the widget properties
-  - functions that set :ref:`local style properties <style_local>`) directly on objects (needs a wrapper to set set the *selector*)
+  - functions that set :ref:`local style properties <style_local>` directly on objects (needs a wrapper to set the *selector*)
   - set properties on :cpp:type:`lv_style_t` objects (e.g. :ref:`shared styles <style_initialize>`)  (``lv_obj_report_style_change`` needs to be called to notify the widgets having the style)
 
 - ``lv_style_set_<property_name>(&style, <value>)``
@@ -242,7 +242,7 @@ Once a *live running* Animation has been started, it runs until it has completed
 or until it is deleted (see below), whichever comes first.  An Animation has
 completed when:
 
-- its "value" has reached the desginated ``end`` value;
+- its "value" has reached the designated ``end`` value;
 - if the Animation has a non-zero *reverse* duration value, then its value
   has run from the ``end`` value back to the ``start`` value again;
 - if a non-zero repeat count has been set, it has repeated the Animation
@@ -359,8 +359,19 @@ Call :cpp:expr:`lv_anim_timeline_get_reverse(timeline)` function to get whether 
 Animation Timeline is also played in reverse after its forward play completes.
 
 Call :cpp:expr:`lv_anim_timeline_delete(timeline)` function to delete the Animation Timeline.
-**Note**: If you need to delete a Widget during Animation, be sure to delete the
-Animation Timeline before deleting the Widget. Otherwise, the program may crash or behave abnormally.
+
+.. caution::
+
+    If you need to delete a Widget during Animation, be sure to delete the Animation
+    Timeline before deleting the Widget. Otherwise, the program may crash or behave
+    abnormally.
+
+If a base object is set with :cpp:expr:`lv_anim_timeline_set_base_object(timeline, obj)`,
+``var`` in the added animations is assumed to be a widget name (or path) string.
+The actual widgets are retrieved by :cpp:expr:`lv_obj_get_child_by_name` before
+calling the ``exec_cb`` of the animation. That is, the ``exec_cb`` gets a pointer to
+the widget, and not the name/path.
+
 
 .. image:: /_static/images/anim-timeline.png
 

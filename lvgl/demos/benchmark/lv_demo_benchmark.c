@@ -10,20 +10,20 @@
 
 #if LV_USE_DEMO_BENCHMARK
 
-#if LV_FONT_MONTSERRAT_14 == 0
-    #error "LV_FONT_MONTSERRAT_14 is required for lv_demo_benchmark. Enable it in lv_conf.h."
+#if LV_FONT_MONTSERRAT_14 == 0 && LV_DEMO_BENCHMARK_ALIGNED_FONTS == 0
+    #error "LV_FONT_MONTSERRAT_14 or LV_DEMO_BENCHMARK_ALIGNED_FONTS is required for lv_demo_benchmark. Enable it in lv_conf.h."
 #endif
 
-#if LV_FONT_MONTSERRAT_20 == 0
-    #error "LV_FONT_MONTSERRAT_20 is required for lv_demo_benchmark. Enable it in lv_conf.h."
+#if LV_FONT_MONTSERRAT_20 == 0 && LV_DEMO_BENCHMARK_ALIGNED_FONTS == 0
+    #error "LV_FONT_MONTSERRAT_20 or LV_DEMO_BENCHMARK_ALIGNED_FONTS is required for lv_demo_benchmark. Enable it in lv_conf.h."
 #endif
 
-#if LV_FONT_MONTSERRAT_24 == 0
-    #error "LV_FONT_MONTSERRAT_24 is required for lv_demo_benchmark. Enable it in lv_conf.h."
+#if LV_FONT_MONTSERRAT_24 == 0 && LV_DEMO_BENCHMARK_ALIGNED_FONTS == 0
+    #error "LV_FONT_MONTSERRAT_24 of LV_DEMO_BENCHMARK_ALIGNED_FONTS is required for lv_demo_benchmark. Enable it in lv_conf.h."
 #endif
 
-#if LV_FONT_MONTSERRAT_26 == 0
-    #error "LV_FONT_MONTSERRAT_26 is required for lv_demo_benchmark. Enable it in lv_conf.h."
+#if LV_FONT_MONTSERRAT_26 == 0 && LV_DEMO_BENCHMARK_ALIGNED_FONTS == 0
+    #error "LV_FONT_MONTSERRAT_26 or LV_DEMO_BENCHMARK_ALIGNED_FONTS is required for lv_demo_benchmark. Enable it in lv_conf.h."
 #endif
 
 #if LV_USE_DEMO_WIDGETS == 0
@@ -216,13 +216,23 @@ static void multiple_labels_cb(void)
 
     int32_t hor_res = lv_display_get_horizontal_resolution(NULL);
     int32_t ver_res = lv_display_get_vertical_resolution(NULL);
+
+#if LV_DEMO_BENCHMARK_ALIGNED_FONTS
+    if(hor_res * ver_res > 800 * 480) lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_26_aligned, 0);
+    else if(hor_res * ver_res > 320 * 240) lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_20_aligned, 0);
+    else lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_14_aligned, 0);
+#else
     if(hor_res * ver_res > 800 * 480) lv_obj_set_style_text_font(scr, &lv_font_montserrat_26, 0);
     else if(hor_res * ver_res > 320 * 240) lv_obj_set_style_text_font(scr, &lv_font_montserrat_20, 0);
     else lv_obj_set_style_text_font(scr, &lv_font_montserrat_14, 0);
+#endif
 
     lv_point_t s;
-    lv_text_get_size(&s, "Hello LVGL!", lv_obj_get_style_text_font(scr, 0), 0, 0, LV_COORD_MAX,
-                     LV_TEXT_FLAG_NONE);
+    lv_text_attributes_t attributes;
+    lv_text_attributes_init(&attributes);
+    attributes.max_width = LV_COORD_MAX;
+
+    lv_text_get_size(&s, "Hello LVGL!", lv_obj_get_style_text_font(scr, 0), &attributes);
 
     int32_t hor_cnt = ((int32_t)lv_obj_get_content_width(scr)) / (s.x * 3 / 2);
     int32_t ver_cnt = ((int32_t)lv_obj_get_content_height(scr)) / (s.y  * 3);
@@ -256,9 +266,16 @@ static void screen_sized_text_cb(void)
     lv_obj_t * scr = lv_screen_active();
     int32_t hor_res = lv_display_get_horizontal_resolution(NULL);
     int32_t ver_res = lv_display_get_vertical_resolution(NULL);
+
+#if LV_DEMO_BENCHMARK_ALIGNED_FONTS
+    if(hor_res * ver_res > 800 * 480) lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_26_aligned, 0);
+    else if(hor_res * ver_res > 320 * 240) lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_20_aligned, 0);
+    else lv_obj_set_style_text_font(scr, &lv_font_benchmark_montserrat_14_aligned, 0);
+#else
     if(hor_res * ver_res > 800 * 480) lv_obj_set_style_text_font(scr, &lv_font_montserrat_26, 0);
     else if(hor_res * ver_res > 320 * 240) lv_obj_set_style_text_font(scr, &lv_font_montserrat_20, 0);
     else lv_obj_set_style_text_font(scr, &lv_font_montserrat_14, 0);
+#endif
 
     lv_obj_t * obj = lv_label_create(scr);
     lv_obj_set_width(obj, lv_pct(100));
@@ -857,12 +874,24 @@ static lv_obj_t * card_create(void)
 
     child = lv_label_create(panel);
     lv_label_set_text_static(child, "John Smith");
+
+#if LV_DEMO_BENCHMARK_ALIGNED_FONTS
+    lv_obj_set_style_text_font(child, &lv_font_benchmark_montserrat_24_aligned, 0);
+#else
     lv_obj_set_style_text_font(child, &lv_font_montserrat_24, 0);
+#endif
+
     lv_obj_set_pos(child, 100, 0);
 
     child = lv_label_create(panel);
     lv_label_set_text_static(child, "A DIY enthusiast");
+
+#if LV_DEMO_BENCHMARK_ALIGNED_FONTS
+    lv_obj_set_style_text_font(child, &lv_font_benchmark_montserrat_14_aligned, 0);
+#else
     lv_obj_set_style_text_font(child, &lv_font_montserrat_14, 0);
+#endif
+
     lv_obj_set_pos(child, 100, 30);
 
     child = lv_button_create(panel);

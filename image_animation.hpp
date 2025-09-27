@@ -2,7 +2,7 @@
 #include "pico/stdlib.h"
 #include "pico/printf.h"
 
-#include "lvgl/src/misc/lv_types.h"
+#include "lvgl/src/display/lv_display.h"
 #include "lvgl/src/misc/lv_anim.h"
 #include "lvgl/src/widgets/image/lv_image.h"
 
@@ -90,7 +90,7 @@ public:
     {
         if (screen)
         {
-            lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_OUT_TOP, 2000, 0, false);
+            lv_screen_load_anim(screen, LV_SCREEN_LOAD_ANIM_OUT_TOP, 2000, 0, false);
         }
     }
 

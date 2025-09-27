@@ -11,8 +11,8 @@ Overview
 The Bar Widget has a background and an indicator. The length of the
 indicator against the background indicates the Bar's current value.
 
-Both the start and end values of the Bar can be set.  Changing the start value to a
-value other than the minimum value in its range changes the start position of the indicator.
+Both the start and end values of the Bar can be set. Changing the start value to a
+value other than the minimum value in its range adjusts the start position of the indicator.
 
 
 
@@ -72,6 +72,20 @@ The Bar can be one of the following modes:
 - :cpp:enumerator:`LV_BAR_MODE_RANGE` Allows setting the start value as well with
   :cpp:expr:`lv_bar_set_start_value(bar, new_value, LV_ANIM_ON/OFF)`. The start
   value must be smaller than the end value.
+
+Data binding
+------------
+
+To get familiar with observers, subjects, and data bindings in general visit the
+:ref:`Observer <observer_how_to_use>` page.
+
+This method of subscribing to an integer Subject affects a Bar Widget's integer
+value directly.  Note that this is a one-way binding (Subject ==> Widget) so when
+the subject changes the Bar will be updated too.
+
+It supports integer and float subjects.
+
+- :cpp:expr:`lv_bar_bind_value(bar, &subject)`
 
 
 

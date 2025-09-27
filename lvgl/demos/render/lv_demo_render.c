@@ -333,11 +333,12 @@ static void image_core_cb(lv_obj_t * parent, bool recolor, uint32_t startAt)
     LV_IMAGE_DECLARE(img_render_lvgl_logo_xrgb8888);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_rgb888);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_rgb565);
-    LV_IMAGE_DECLARE(img_render_lvgl_logo_rgb565a8);
+    LV_IMAGE_DECLARE(img_render_lvgl_logo_rgb565_swapped);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_argb8888);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_argb8888_premultiplied);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_l8);
     LV_IMAGE_DECLARE(img_render_lvgl_logo_i1);
+    LV_IMAGE_DECLARE(img_render_lvgl_logo_rgb565a8);
 
     const void * srcs[] = {
         &img_render_lvgl_logo_argb8888,
@@ -345,8 +346,10 @@ static void image_core_cb(lv_obj_t * parent, bool recolor, uint32_t startAt)
         &img_render_lvgl_logo_xrgb8888,
         &img_render_lvgl_logo_rgb888,
         &img_render_lvgl_logo_rgb565,
-        &img_render_lvgl_logo_rgb565a8,
+        &img_render_lvgl_logo_rgb565_swapped,
         &img_render_lvgl_logo_l8,
+        NULL,
+        &img_render_lvgl_logo_rgb565a8,
         &img_render_lvgl_logo_i1,
     };
 
@@ -356,8 +359,11 @@ static void image_core_cb(lv_obj_t * parent, bool recolor, uint32_t startAt)
         "XRGB\n8888",
         "RGB\n888",
         "RGB\n565",
-        "RGB\n565A8",
+        "RGB\n565\nSWAP",
         "L8",
+        "", /*Make sure that RGB565A8 and I1 are on the same page.
+              Both are disabled in VGLite as they are not supported*/
+        "RGB\n565A8",
         "I1",
     };
 
@@ -426,6 +432,16 @@ static void image_normal_2_cb(lv_obj_t * parent)
 static void image_recolored_2_cb(lv_obj_t * parent)
 {
     image_core_cb(parent, true, 4);
+}
+
+static void image_normal_3_cb(lv_obj_t * parent)
+{
+    image_core_cb(parent, false, 8);
+}
+
+static void image_recolored_3_cb(lv_obj_t * parent)
+{
+    image_core_cb(parent, true, 8);
 }
 
 static lv_obj_t * line_obj_create(lv_obj_t * parent, int32_t col, int32_t row, lv_point_precise_t p[])
@@ -545,14 +561,14 @@ static void triangle_draw_event_cb(lv_event_t * e)
     dsc.p[2].x = p_rel[2].x + coords.x1 + 8;
     dsc.p[2].y = p_rel[2].y + coords.y1 + 2;
 
-    lv_opa_t opa = lv_obj_get_style_opa(obj, 0);
-    dsc.grad.dir = lv_obj_get_style_bg_grad_dir(obj, 0);
-    dsc.grad.stops[0].color = lv_obj_get_style_bg_color(obj, 0);
-    dsc.grad.stops[0].frac = lv_obj_get_style_bg_main_stop(obj, 0);
-    dsc.grad.stops[0].opa = LV_OPA_MIX2(lv_obj_get_style_bg_main_opa(obj, 0), opa);
-    dsc.grad.stops[1].color = lv_obj_get_style_bg_grad_color(obj, 0);
-    dsc.grad.stops[1].frac = lv_obj_get_style_bg_grad_stop(obj, 0);
-    dsc.grad.stops[1].opa = LV_OPA_MIX2(lv_obj_get_style_bg_grad_opa(obj, 0), opa);
+    lv_opa_t opa = lv_obj_get_style_opa(obj, LV_PART_MAIN);
+    dsc.grad.dir = lv_obj_get_style_bg_grad_dir(obj, LV_PART_MAIN);
+    dsc.grad.stops[0].color = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
+    dsc.grad.stops[0].frac = lv_obj_get_style_bg_main_stop(obj, LV_PART_MAIN);
+    dsc.grad.stops[0].opa = LV_OPA_MIX2(lv_obj_get_style_bg_main_opa(obj, LV_PART_MAIN), opa);
+    dsc.grad.stops[1].color = lv_obj_get_style_bg_grad_color(obj, LV_PART_MAIN);
+    dsc.grad.stops[1].frac = lv_obj_get_style_bg_grad_stop(obj, LV_PART_MAIN);
+    dsc.grad.stops[1].opa = LV_OPA_MIX2(lv_obj_get_style_bg_grad_opa(obj, LV_PART_MAIN), opa);
     dsc.grad.stops_count = 2;
 
     dsc.color = dsc.grad.stops[0].color;
@@ -804,6 +820,12 @@ static void blend_mode_cb(lv_obj_t * parent)
     LV_DRAW_BUF_DEFINE_STATIC(buf_xrgb8888, 36, 30, LV_COLOR_FORMAT_XRGB8888);
     LV_DRAW_BUF_DEFINE_STATIC(buf_argb8888, 36, 30, LV_COLOR_FORMAT_ARGB8888);
     LV_DRAW_BUF_DEFINE_STATIC(buf_argb8888_premul, 36, 30, LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED);
+
+    LV_DRAW_BUF_INIT_STATIC(buf_rgb565);
+    LV_DRAW_BUF_INIT_STATIC(buf_rgb888);
+    LV_DRAW_BUF_INIT_STATIC(buf_xrgb8888);
+    LV_DRAW_BUF_INIT_STATIC(buf_argb8888);
+    LV_DRAW_BUF_INIT_STATIC(buf_argb8888_premul);
 
     /*The canvas will stay in the top left corner to show the original image*/
     lv_obj_t * canvas = lv_canvas_create(lv_screen_active());
@@ -1105,6 +1127,8 @@ static scene_dsc_t scenes[] = {
     {.name = "image_recolor_1",     .create_cb = image_recolored_1_cb},
     {.name = "image_normal_2",      .create_cb = image_normal_2_cb},
     {.name = "image_recolor_2",     .create_cb = image_recolored_2_cb},
+    {.name = "image_normal_3",      .create_cb = image_normal_3_cb},
+    {.name = "image_recolor_3",     .create_cb = image_recolored_3_cb},
     {.name = "line",                .create_cb = line_cb},
     {.name = "arc_normal",          .create_cb = arc_normal_cb},
     {.name = "arc_image",           .create_cb = arc_image_cb},

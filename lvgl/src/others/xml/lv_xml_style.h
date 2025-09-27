@@ -35,32 +35,10 @@ typedef struct _lv_xml_style_t {
 
 /**
  * Add a style to `ctx` and set the style properties from `attrs`
- * @param ctx       add styles here. (Constants should be already added as style properties might use them)
+ * @param scope     add styles here. (Constants should be already added as style properties might use them)
  * @param attrs     list of attribute names and values
  */
-lv_result_t lv_xml_style_register(lv_xml_component_ctx_t * ctx, const char ** attrs);
-
-/**
- * Add the styles to an object. Handles multiple styles and selectors too.
- * @param state     the parser state
- * @param obj       the target widget
- * @param text      the styles' string, e.g. "blue red:pressed:knob"
- */
-void lv_xml_style_add_to_obj(lv_xml_parser_state_t * state, lv_obj_t * obj, const char * text);
-
-/**
- * Convert a style state to enum
- * @param txt       e.g. "pressed"
- * @return          the enum `LV_STATE_PRESSED`
- */
-lv_state_t lv_xml_style_state_to_enum(const char * txt);
-
-/**
- * Convert a style part to enum
- * @param txt       e.g. "knob"
- * @return          the enum `LV_PART_KNOB`
- */
-lv_part_t lv_xml_style_part_to_enum(const char * txt);
+lv_result_t lv_xml_style_register(lv_xml_component_scope_t * scope, const char ** attrs);
 
 /**
  * Decompose a string like `"style1:pressed:checked:knob"` to style name and selector
@@ -72,19 +50,19 @@ const char * lv_xml_style_string_process(char * txt, lv_style_selector_t * selec
 
 /**
  * Find a style by name which was added by `lv_xml_style_register`
- * @param ctx       the default context to search in
+ * @param scope     the default context to search in
  * @param name      the name of the style. Can start with a component name prefix (e.g. `my_button.blue`) to overwrite the ctx
  * @return          the style structure
  */
-lv_xml_style_t * lv_xml_get_style_by_name(lv_xml_component_ctx_t * ctx, const char * name);
+lv_xml_style_t * lv_xml_get_style_by_name(lv_xml_component_scope_t * scope, const char * name);
 
 /**
  * Get a gradient descriptor defined for a component
- * @param ctx   component context where the gradient should be found
+ * @param scope component context where the gradient should be found
  * @param name  name of the gradient
  * @return      a gradient descriptor
  */
-lv_grad_dsc_t * lv_xml_component_get_grad(lv_xml_component_ctx_t * ctx, const char * name);
+lv_grad_dsc_t * lv_xml_component_get_grad(lv_xml_component_scope_t * scope, const char * name);
 
 /**********************
  *      MACROS
