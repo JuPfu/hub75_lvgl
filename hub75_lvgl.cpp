@@ -235,7 +235,7 @@ int main()
 {
     initialize();
 
-    sleep_ms(10000); // Allow screen + hardware to stabilize
+    sleep_ms(1000); // Allow screen + hardware to stabilize
 
     lv_init();
     lv_tick_set_cb(get_milliseconds_since_boot);
