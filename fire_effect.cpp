@@ -79,7 +79,7 @@ inline lv_color_t FireEffect::heat_to_color(float value) {
         g = b;
     }
     else {
-        r = static_cast<uint8_t>(200 * value);
+        r = static_cast<uint8_t>(150 * value);
         g = r;
         b = r;
     }

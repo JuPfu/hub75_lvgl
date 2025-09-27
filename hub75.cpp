@@ -268,7 +268,11 @@ static void oen_finished_handler()
 
     // Restart DMA channels for the next row's data transfer
     dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
+#ifdef HUB75_MULTIPLEX_2_ROWS
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
+#endif
 }
 
 /**
@@ -281,7 +285,11 @@ static void oen_finished_handler()
 void start_hub75_driver()
 {
     dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
+#ifdef HUB75_MULTIPLEX_2_ROWS
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
+#elif defined HUB75_MULTIPLEX_4_ROWS
+    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
+#endif
 }
 
 void FM6126A_init_register()
@@ -527,7 +535,11 @@ static void dma_input_channel_setup(uint channel,
  */
 static void setup_dma_transfers()
 {
+#ifdef HUB75_MULTIPLEX_2_ROWS
     dma_input_channel_setup(pixel_chan, width << 1, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
+#elif HUB75_MULTIPLEX_4_ROWS
+    dma_input_channel_setup(pixel_chan, width << 2, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
+#endif
     dma_input_channel_setup(dummy_pixel_chan, 8, DMA_SIZE_32, false, oen_chan, pio_config.data_pio, pio_config.sm_data);
     dma_input_channel_setup(oen_chan, 1, DMA_SIZE_32, true, oen_chan, pio_config.row_pio, pio_config.sm_row);
 
