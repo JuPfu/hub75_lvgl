@@ -537,7 +537,7 @@ static void setup_dma_transfers()
 {
 #ifdef HUB75_MULTIPLEX_2_ROWS
     dma_input_channel_setup(pixel_chan, width << 1, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
-#elif HUB75_MULTIPLEX_4_ROWS
+#elif defined HUB75_MULTIPLEX_4_ROWS
     dma_input_channel_setup(pixel_chan, width << 2, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
 #endif
     dma_input_channel_setup(dummy_pixel_chan, 8, DMA_SIZE_32, false, oen_chan, pio_config.data_pio, pio_config.sm_data);
