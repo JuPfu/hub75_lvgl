@@ -10,6 +10,8 @@
 
 #include "hardware/dma.h"
 
+#include "rul6024.h"
+
 // Wiring of the HUB75 matrix
 #define DATA_BASE_PIN 0
 #define DATA_N_PINS 6
@@ -21,7 +23,7 @@
 
 #define EXIT_FAILURE 1
 
-#define TEMPORAL_DITHERING // use temporal dithering - remove define to use no dithering
+// #define TEMPORAL_DITHERING // use temporal dithering - remove define to use no dithering
 
 // Scan rate 1 : 32 for a 64x64 matrix panel means 64 pixel height divided by 32 pixel results in 2 rows lit simultaneously.
 // Scan rate 1 : 16 for a 64x64 matrix panel means 64 pixel height divided by 16 pixel results in 4 rows lit simultaneously.
@@ -90,7 +92,8 @@ static void setup_dma_transfers();
 static void setup_dma_irq();
 
 // Dummy pixel data emitted at the end of each row to ensure the last genuine pixels of a row are displayed - keep volatile!
-static volatile uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+// static volatile uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static volatile uint32_t dummy_pixel_data[4] = {0x0, 0x0, 0x0, 0x0};
 // Control data for the output enable signal - keep volatile!
 static volatile uint32_t oen_finished_data = 0;
 
@@ -121,6 +124,9 @@ typedef struct
     uint sm_row;
     PIO row_pio;
     uint row_prog_offs;
+    uint dummy_sm_data;
+    PIO dummy_data_pio;
+    uint dummy_data_prog_offs;
 } PioConfig;
 
 static PioConfig pio_config;
@@ -295,52 +301,21 @@ void start_hub75_driver()
 void FM6126A_init_register()
 {
     // Set up GPIO
-    gpio_init(DATA_BASE_PIN);
-    gpio_set_function(DATA_BASE_PIN, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA_BASE_PIN, true);
-    gpio_put(DATA_BASE_PIN, 0);
-    gpio_init((DATA_BASE_PIN + 1));
-    gpio_set_function((DATA_BASE_PIN + 1), GPIO_FUNC_SIO);
-    gpio_set_dir((DATA_BASE_PIN + 1), true);
-    gpio_put((DATA_BASE_PIN + 1), 0);
-    gpio_init((DATA_BASE_PIN + 2));
-    gpio_set_function((DATA_BASE_PIN + 2), GPIO_FUNC_SIO);
-    gpio_set_dir((DATA_BASE_PIN + 2), true);
-    gpio_put((DATA_BASE_PIN + 2), 0);
+    for (auto i = 0; i < DATA_N_PINS; i++)
+    {
+        gpio_init(DATA_BASE_PIN + i);
+        gpio_set_function(DATA_BASE_PIN + i, GPIO_FUNC_SIO);
+        gpio_set_dir(DATA_BASE_PIN + i, true);
+        gpio_put(DATA_BASE_PIN + i, 0);
+    }
 
-    gpio_init((DATA_BASE_PIN + 3));
-    gpio_set_function((DATA_BASE_PIN + 3), GPIO_FUNC_SIO);
-    gpio_set_dir((DATA_BASE_PIN + 3), true);
-    gpio_put((DATA_BASE_PIN + 3), 0);
-    gpio_init((DATA_BASE_PIN + 4));
-    gpio_set_function((DATA_BASE_PIN + 4), GPIO_FUNC_SIO);
-    gpio_set_dir((DATA_BASE_PIN + 4), true);
-    gpio_put((DATA_BASE_PIN + 4), 0);
-    gpio_init((DATA_BASE_PIN + 5));
-    gpio_set_function((DATA_BASE_PIN + 5), GPIO_FUNC_SIO);
-    gpio_set_dir((DATA_BASE_PIN + 5), true);
-    gpio_put((DATA_BASE_PIN + 5), 0);
-
-    gpio_init(ROWSEL_BASE_PIN);
-    gpio_set_function(ROWSEL_BASE_PIN, GPIO_FUNC_SIO);
-    gpio_set_dir(ROWSEL_BASE_PIN, true);
-    gpio_put(ROWSEL_BASE_PIN, 0);
-    gpio_init((ROWSEL_BASE_PIN + 1));
-    gpio_set_function((ROWSEL_BASE_PIN + 1), GPIO_FUNC_SIO);
-    gpio_set_dir((ROWSEL_BASE_PIN + 1), true);
-    gpio_put((ROWSEL_BASE_PIN + 1), 0);
-    gpio_init((ROWSEL_BASE_PIN + 2));
-    gpio_set_function((ROWSEL_BASE_PIN + 2), GPIO_FUNC_SIO);
-    gpio_set_dir((ROWSEL_BASE_PIN + 2), true);
-    gpio_put((ROWSEL_BASE_PIN + 2), 0);
-    gpio_init((ROWSEL_BASE_PIN + 3));
-    gpio_set_function((ROWSEL_BASE_PIN + 3), GPIO_FUNC_SIO);
-    gpio_set_dir((ROWSEL_BASE_PIN + 3), true);
-    gpio_put((ROWSEL_BASE_PIN + 3), 0);
-    gpio_init((ROWSEL_BASE_PIN + 4));
-    gpio_set_function((ROWSEL_BASE_PIN + 4), GPIO_FUNC_SIO);
-    gpio_set_dir((ROWSEL_BASE_PIN + 4), true);
-    gpio_put((ROWSEL_BASE_PIN + 4), 0);
+    for (auto i = 0; i < ROWSEL_N_PINS; i++)
+    {
+        gpio_init(ROWSEL_BASE_PIN + i);
+        gpio_set_function(ROWSEL_BASE_PIN + i, GPIO_FUNC_SIO);
+        gpio_set_dir(ROWSEL_BASE_PIN + i, true);
+        gpio_put(ROWSEL_BASE_PIN + i, 0);
+    }
 
     gpio_init(CLK_PIN);
     gpio_set_function(CLK_PIN, GPIO_FUNC_SIO);
@@ -383,6 +358,235 @@ void FM6126A_write_register(uint16_t value, uint8_t position)
     }
 }
 
+void RUL6024_init_register()
+{
+    // Set up GPIO
+    for (auto i = 0; i < DATA_N_PINS; i++)
+    {
+        gpio_init(DATA_BASE_PIN + i);
+        gpio_set_function(DATA_BASE_PIN + i, GPIO_FUNC_SIO);
+        gpio_set_dir(DATA_BASE_PIN + i, true);
+        gpio_put(DATA_BASE_PIN + i, 0);
+    }
+
+    for (auto i = 0; i < ROWSEL_N_PINS; i++)
+    {
+        gpio_init(ROWSEL_BASE_PIN + i);
+        gpio_set_function(ROWSEL_BASE_PIN + i, GPIO_FUNC_SIO);
+        gpio_set_dir(ROWSEL_BASE_PIN + i, true);
+        gpio_put(ROWSEL_BASE_PIN + i, 0);
+    }
+
+    gpio_init(CLK_PIN);
+    gpio_set_function(CLK_PIN, GPIO_FUNC_SIO);
+    gpio_set_dir(CLK_PIN, true);
+    gpio_put(CLK_PIN, LOW);
+
+    gpio_init(STROBE_PIN);
+    gpio_set_function(STROBE_PIN, GPIO_FUNC_SIO);
+    gpio_set_dir(STROBE_PIN, true);
+    gpio_put(CLK_PIN, LOW);
+
+    gpio_init(OEN_PIN);
+    gpio_set_function(OEN_PIN, GPIO_FUNC_SIO);
+    gpio_set_dir(OEN_PIN, true);
+    gpio_put(OEN_PIN, LOW);
+}
+
+void RUL6024_write_register(uint16_t value, uint8_t position)
+{
+    gpio_put(STROBE_PIN, LOW);
+    sleep_us(10);
+
+    uint8_t threshold = width - position;
+    for (auto i = 0u; i < width; i++)
+    {
+        auto j = i % 16;
+        bool b = value & (1 << j);
+
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(DATA_BASE_PIN, b);
+        gpio_put((DATA_BASE_PIN + 1), b);
+        gpio_put((DATA_BASE_PIN + 2), b);
+        gpio_put((DATA_BASE_PIN + 3), b);
+        gpio_put((DATA_BASE_PIN + 4), b);
+        gpio_put((DATA_BASE_PIN + 5), b);
+
+        // Assert strobe/latch if i > threshold
+        // This somehow indicates to the FM6126A which register we want to write :|
+        gpio_put(STROBE_PIN, i > threshold);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+    }
+}
+
+void RUL6024_write_command(uint8_t command)
+{
+    // The chip contains a simple 16-bit shift register. The grayscale value and configuration
+    // value are latched into the shift register (the data transmitted to the chip first is the high bit
+    // of the register). The control command is parsed by counting the length of the LE signal.
+    // Different LE lengths represent different commands. For example, a LE signal with a
+    // length of 3 represents the "Data_Latch" command, which is used to control the shift
+    // register to latch the value and send the 16-bit data in the shift register to the
+    // output channel. The following table lists all the commands and their meanings.
+    //
+    // Command Name    LE length     Command Description
+    //
+    // RESET_OEN       1 & 2         The reset signal of the time-sharing display function is 1 LE width first, followed by 2 LE widths.
+    // DATA_LATCH      3             Latch 16 bit data and send it to output channel
+    // Reserved        4 to 10       Reserved
+    // WR_REG1         11            Write configuration register 1
+    // WR_REG2         12            Write configuration register 2
+
+    switch (command)
+    {
+    case CMD_RESET_OEN:
+        printf("DO RESET_OEN COMMAND\n");
+        // The reset signal of the time-sharing display function is 1 LE width first, followed by 2 LE widths.
+
+        gpio_put(OEN_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        gpio_put(STROBE_PIN, LOW); // clk    --_--
+        sleep_us(10);              // LE     _____
+                                   // OE     ---__
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+
+        gpio_put(CLK_PIN, LOW);
+        gpio_put(STROBE_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(OEN_PIN, LOW);
+        sleep_us(10);
+
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+
+        gpio_put(STROBE_PIN, LOW);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+
+        gpio_put(OEN_PIN, HIGH);
+        sleep_us(10);
+
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(OEN_PIN, LOW);
+        sleep_us(10);
+
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+
+        gpio_put(CLK_PIN, LOW);
+        gpio_put(STROBE_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(OEN_PIN, HIGH);
+
+        // LE set to high for 2 clock cycle
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(STROBE_PIN, LOW);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        break;
+    case CMD_DATA_LATCH:
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(STROBE_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(CLK_PIN, HIGH);
+        sleep_us(10);
+        gpio_put(CLK_PIN, LOW);
+        sleep_us(10);
+        gpio_put(STROBE_PIN, LOW);
+        sleep_us(10);
+        gpio_put(OEN_PIN, LOW);
+        break;
+    case CMD_WREG1:
+        gpio_put(CLK_PIN, LOW);
+        gpio_put(STROBE_PIN, LOW);
+        gpio_put(OEN_PIN, HIGH);
+        sleep_us(10);
+
+        for (auto i = 0; i <= CMD_WREG1; i++)
+        {
+            gpio_put(CLK_PIN, HIGH);
+            sleep_us(10);
+            if (i == 0)
+            {
+                gpio_put(STROBE_PIN, HIGH);
+                sleep_us(10);
+            }
+            gpio_put(CLK_PIN, LOW);
+            sleep_us(10);
+        }
+
+        // FM6126A_write_register(WREG1, 11);
+        RUL6024_write_register(WREG1, 12);
+
+        gpio_put(OEN_PIN, LOW);
+        sleep_us(10);
+
+        break;
+    case CMD_WREG2:
+        gpio_put(OEN_PIN, HIGH);
+        gpio_put(CLK_PIN, LOW);
+        gpio_put(STROBE_PIN, LOW);
+        sleep_us(10);
+
+        for (auto i = 0; i <= CMD_WREG2; i++)
+        {
+            gpio_put(CLK_PIN, HIGH);
+            sleep_us(10);
+            if (i == 0)
+            {
+                gpio_put(STROBE_PIN, HIGH);
+                sleep_us(10);
+            }
+            gpio_put(CLK_PIN, LOW);
+            sleep_us(10);
+        }
+
+        // FM6126A_write_register(WREG2, 12);
+        RUL6024_write_register(WREG2, 12);
+
+        gpio_put(OEN_PIN, LOW);
+        sleep_us(10);
+        break;
+    }
+}
+
+void RUL6024_setup()
+{
+    RUL6024_init_register();
+
+    RUL6024_write_command(CMD_WREG1);
+    RUL6024_write_command(CMD_WREG2);
+    // RESET_OEN is required after writing WREG2
+    RUL6024_write_command(CMD_RESET_OEN);
+    // RUL6024_write_command(CMD_DATA_LATCH);
+}
+
 /**
  * @brief Generate initialisation sequence for FM6126A based led matrix panels.
  *
@@ -395,9 +599,16 @@ void FM6126A_setup()
 {
     FM6126A_init_register();
 
-    // Ridiculous register write nonsense for the FM6126A-based 64x64 matrix
-    FM6126A_write_register(0b1111111111111110, 12);
-    FM6126A_write_register(0b0000001000000000, 13);
+    // Set write register WREG1 and WR_REG2 values
+
+    const uint16_t b12a = 0b1111111111000000; // from loganalyzer
+    const uint16_t b13a = 0b0000000001000000;
+    FM6126A_write_register(b13a, 13);
+    sleep_us(20);
+    FM6126A_write_register(b12a, 12);
+
+    // FM6126A_write_register(0b1111111111111110, 12);
+    // FM6126A_write_register(0b0000001000000000, 13);
 }
 
 /**
@@ -424,9 +635,13 @@ void create_hub75_driver(uint w, uint h, PanelType panel_type, bool inverted_stb
 
     init_accumulators(width * height);
 
+    sleep_ms(5000);
+
+    RUL6024_setup();
+
     if (panel_type == PANEL_FM6126A)
     {
-        FM6126A_setup();
+        //      FM6126A_setup();
     }
 
     configure_pio(inverted_stb);
@@ -451,6 +666,13 @@ static void configure_pio(bool inverted_stb)
         fprintf(stderr, "Failed to claim PIO state machine for hub75_data_rgb888_program\n");
     }
 
+    // dummy data
+    if (!pio_claim_free_sm_and_add_program(&hub75_dummy_data_rgb888_program, &pio_config.dummy_data_pio, &pio_config.dummy_sm_data, &pio_config.dummy_data_prog_offs))
+    {
+        fprintf(stderr, "Failed to claim PIO state machine for hub75_dummy_data_rgb888_program\n");
+    }
+    hub75_dummy_data_rgb888_program_init(pio_config.dummy_data_pio, pio_config.dummy_sm_data, pio_config.dummy_data_prog_offs, DATA_BASE_PIN, CLK_PIN, STROBE_PIN);
+
     if (inverted_stb)
     {
         if (!pio_claim_free_sm_and_add_program(&hub75_row_inverted_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
@@ -467,7 +689,14 @@ static void configure_pio(bool inverted_stb)
     }
 
     hub75_data_rgb888_program_init(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, DATA_BASE_PIN, CLK_PIN);
-    hub75_row_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN);
+    if (inverted_stb)
+    {
+        hub75_row_inverted_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN);
+    }
+    else
+    {
+        hub75_row_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, CLK_PIN);
+    }
 }
 
 /**
@@ -537,10 +766,10 @@ static void setup_dma_transfers()
 {
 #ifdef HUB75_MULTIPLEX_2_ROWS
     dma_input_channel_setup(pixel_chan, width << 1, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
-#elif HUB75_MULTIPLEX_4_ROWS
+#elif defined HUB75_MULTIPLEX_4_ROWS
     dma_input_channel_setup(pixel_chan, width << 2, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
 #endif
-    dma_input_channel_setup(dummy_pixel_chan, 8, DMA_SIZE_32, false, oen_chan, pio_config.data_pio, pio_config.sm_data);
+    dma_input_channel_setup(dummy_pixel_chan, 8, DMA_SIZE_32, false, oen_chan, pio_config.dummy_data_pio, pio_config.dummy_sm_data);
     dma_input_channel_setup(oen_chan, 1, DMA_SIZE_32, true, oen_chan, pio_config.row_pio, pio_config.sm_row);
 
     dma_channel_set_read_addr(dummy_pixel_chan, dummy_pixel_data, false);
@@ -824,8 +1053,8 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
  * @param y2   Bottom coordinate of update region
  */
 __attribute__((optimize("unroll-loops"))) void update_area_bgr(const uint8_t *src,
-                     int32_t x1, int32_t y1,
-                     int32_t x2, int32_t y2)
+                                                               int32_t x1, int32_t y1,
+                                                               int32_t x2, int32_t y2)
 {
     const uint32_t src_stride = width * 3; // LVGL source stride (BGR888)
     const uint32_t fb_stride = width * 2;  // frame_buffer stride

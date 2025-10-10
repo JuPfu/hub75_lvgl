@@ -20,7 +20,7 @@
 //--------------------------------------------------------------------------------
 
 #define MATRIX_PANEL_WIDTH 64                               ///< Display width in pixels
-#define MATRIX_PANEL_HEIGHT 64                              ///< Display height in pixels
+#define MATRIX_PANEL_HEIGHT 64                             ///< Display height in pixels
 #define OFFSET RGB_MATRIX_WIDTH *(MATRIX_PANEL_HEIGHT >> 1) ///< Mid-point index for symmetrical buffers
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
@@ -118,7 +118,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 bool skip_to_next_demo(__unused struct repeating_timer *t)
 {
     if (frame_index++ >= DEMO_COLOUR)
-        frame_index = DEMO_BOUNCE;
+        frame_index = DEMO_COLOUR;
     load_anim = true;
     return true;
 }
