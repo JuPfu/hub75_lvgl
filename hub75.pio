@@ -13,7 +13,7 @@
 ;
 ; Each FIFO record consists of:
 ; - 5-bit row select (LSBs)
-; - Pulse width - 1 (27 MSBs)
+; - Pulse width - 1 (27 MSBs)  OEn deassert = 1 OEn assert 0 
 ;
 ; Repeatedly select a row, pulse LATCH, and generate a pulse of a certain
 ; width on OEn (Binary Coded Modulation - BCM).
@@ -21,8 +21,9 @@
 .side_set 2
 
 .wrap_target
-    out pins, 5 [7]    side 0x2 ; Deassert OEn, output row select
-    out x, 27   [7]    side 0x3 ; Pulse LATCH, get OEn pulse width
+    out pins, 5 [4]    side 0x2 ; Deassert OEn, output row select
+    out x, 27   [2]    side 0x3 ; Pulse LATCH, get OEn pulse width  
+    nop         [2]    side 0x2 ; Deassert Latch
 pulse_loop:
     jmp x-- pulse_loop side 0x0 ; Assert OEn for x+1 cycles
     in x, 32           side 0x0 ; Output data sent to DMA channel after OEn has finished
@@ -34,13 +35,12 @@ static inline void hub75_row_program_init(PIO pio, uint sm, uint offset, uint ro
     pio_sm_set_consecutive_pindirs(pio, sm, latch_base_pin, 2, true);
     for (uint i = row_base_pin; i < row_base_pin + n_row_pins; ++i)
         pio_gpio_init(pio, i);
-    pio_gpio_init(pio, latch_base_pin);
-    pio_gpio_init(pio, latch_base_pin + 1);
-    pio_gpio_init(pio, latch_base_pin + 2);
+    pio_gpio_init(pio, latch_base_pin); // aka STROBE pin
+    pio_gpio_init(pio, latch_base_pin + 1); // OEn pin
 
     pio_sm_config c = hub75_row_program_get_default_config(offset);
     sm_config_set_out_pins(&c, row_base_pin, n_row_pins);
-    sm_config_set_sideset_pins(&c, latch_base_pin);
+    sm_config_set_sideset_pins(&c, latch_base_pin); // STROBE pin and OEn pin
     sm_config_set_in_shift(&c, true, true, 32);
     sm_config_set_out_shift(&c, true, true, 32);
     pio_sm_init(pio, sm, offset, &c);
@@ -57,7 +57,6 @@ static inline void hub75_row_program_init(PIO pio, uint sm, uint offset, uint ro
 ; Each FIFO record consists of:
 ; - 5-bit row select (LSBs)
 ; - Pulse width - 1 (27 MSBs)   OEn deassert = 1 OEn assert 0 
-;                               OEn deassert = 0 OEn assert 1
 ;
 ; Repeatedly select a row, pulse LATCH, and generate a pulse of a certain
 ; width on OEn (Binary Coded Modulation - BCM).
@@ -189,32 +188,30 @@ static inline void hub75_data_rgb888_program_init(PIO pio, uint sm, uint offset,
 ; Might want to close your eyes before you read this
 public entry_point:
 .wrap_target
-
 public shift0:                     ; R0 G0 B0 (Top half of 64x64 displays)
-    pull                    side 2 ; gets patched to `out null, n` if n nonzero (otherwise the PULL is required for fencing)
-    in osr, 1               side 2 ; Red0 N
-    out null, BIT_PLANES    side 2 ; Red0 discard
+    pull                    side 0 ; gets patched to `out null, n` if n nonzero (otherwise the PULL is required for fencing)
+    in osr, 1               side 0 ; Red0 N
+    out null, BIT_PLANES    side 0 ; Red0 discard
 
-    in osr, 1               side 2 ; Green0 N
-    out null, BIT_PLANES    side 2 ; Green0 discard
+    in osr, 1               side 0 ; Green0 N
+    out null, BIT_PLANES    side 0 ; Green0 discard
 
-    in osr, 1               side 2 ; Blue0 N
-    out null, 32            side 2 ; Remainder discard
+    in osr, 1               side 0 ; Blue0 N
+    out null, 32            side 0 ; Remainder discard
 
 public shift1:                     ; R1 G1 B1 (Bottom half of 64x64 displays)
-    pull                    side 2 ; gets patched to `out null, n` if n nonzero (otherwise the PULL is required for fencing)
-    in osr, 1               side 3 ; Red1 N
-    out null, BIT_PLANES    side 3 ; Red1 discard
+    pull                    side 0 ; gets patched to `out null, n` if n nonzero (otherwise the PULL is required for fencing)
+    in osr, 1               side 1 ; Red1 N
+    out null, BIT_PLANES    side 1 ; Red1 discard
 
-    in osr, 1               side 3 ; Green1 N
-    out null, BIT_PLANES    side 3 ; Green1 discard
+    in osr, 1               side 1 ; Green1 N
+    out null, BIT_PLANES    side 1 ; Green1 discard
 
-    in osr, 1               side 3 ; Blue1 N
-    out null, 32            side 3 ; Remainder discard
+    in osr, 1               side 1 ; Blue1 N
+    out null, 32            side 1 ; Remainder discard
 
-    in null, 26             side 3 ; Note we are just doing this little manoeuvre here to get GPIOs in the order
-    mov pins, ::isr         side 3 ; R0, G0, B0, R1, G1, B1. Can go 1 cycle faster if reversed
-
+    in null, 26             side 1 ; Note we are just doing this little manoeuvre here to get GPIOs in the order
+    mov pins, ::isr         side 1 ; R0, G0, B0, R1, G1, B1. Can go 1 cycle faster if reversed
 .wrap
 ; Note that because the clock edge for pixel n is in the middle of pixel n +
 ; 1, a dummy pixel at the end is required to clock the last piece of genuine
@@ -251,5 +248,7 @@ static inline void hub75_data_rgb888_set_shift(PIO pio, uint sm, uint offset, ui
         instr = pio_encode_out(pio_null, shamt);
     pio->instr_mem[offset + hub75_data_rgb888_offset_shift0] = instr;
     pio->instr_mem[offset + hub75_data_rgb888_offset_shift1] = instr;
+    pio->instr_mem[offset + hub75_dummy_data_rgb888_offset_shift0] = instr;
+    pio->instr_mem[offset + hub75_dummy_data_rgb888_offset_shift1] = instr;
 }
 %}
