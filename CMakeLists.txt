@@ -23,7 +23,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico2 CACHE STRING "Board type")
+set(PICO_BOARD pico2_w CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -67,6 +67,8 @@ message(NOTICE "=== LVGL configuraton end <<<===")
 target_sources(hub75_lvgl PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/hub75.cpp
         ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/fm6126a.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/rul6024.cpp
         ${CMAKE_CURRENT_LIST_DIR}/bouncing_balls.cpp
         ${CMAKE_CURRENT_LIST_DIR}/fire_effect.cpp
         ${CMAKE_CURRENT_LIST_DIR}/image_animation.hpp
@@ -87,6 +89,11 @@ target_link_libraries(hub75_lvgl
         hardware_timer
         lvgl
         )
+
+if(PICO_CYW43_SUPPORTED)
+    target_link_libraries(hub75_lvgl
+                          pico_cyw43_arch_none)
+endif()
 
 pico_add_extra_outputs(hub75_lvgl)
 

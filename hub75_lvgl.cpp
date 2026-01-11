@@ -2,6 +2,13 @@
 #include "pico/stdlib.h"
 #include "pico/printf.h"
 #include "pico/multicore.h"
+
+// Pico W devices use a GPIO on the WIFI chip for the LED,
+// so when building for Pico W, CYW43_WL_GPIO_LED_PIN will be defined
+#ifdef CYW43_WL_GPIO_LED_PIN
+#include "pico/cyw43_arch.h"
+#endif
+
 #include "hardware/clocks.h"
 
 #include "hub75.hpp"
@@ -19,22 +26,8 @@
 // Constants and Globals
 //--------------------------------------------------------------------------------
 
-#define MATRIX_PANEL_WIDTH 64                               ///< Display width in pixels
-#define MATRIX_PANEL_HEIGHT 64                              ///< Display height in pixels
-#define OFFSET RGB_MATRIX_WIDTH *(MATRIX_PANEL_HEIGHT >> 1) ///< Mid-point index for symmetrical buffers
-
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
 
-// Panel type FM6126A receives some initial incantation sequence.
-// This should usually have no effect on generic matrix panels.
-// You might see a short lighting of some leds for generic panels.
-// To suppress this effect set PANEL_TYPE to PANEL_GENERIC.
-
-// PanelType - either PANEL_GENERIC or PANEL_FM6126A
-#define PANEL_TYPE PANEL_FM6126A
-
-// stb_inverted - either true (inverted) or false (default)
-#define STB_INVERTED false
 
 /// @brief Enum for selecting animation demos
 enum DemoIndex
@@ -43,7 +36,6 @@ enum DemoIndex
     DEMO_FIRE,
     DEMO_IMAGE,
     DEMO_COLOUR,
-    DEMO_COUNT
 };
 
 static critical_section_t crit_sec = {0};                                   ///< Synchronization for safe time reading
@@ -107,6 +99,49 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
     lv_display_flush_ready(display); ///< Notify LVGL that flush is complete
 }
 
+// Perform initialisation
+int pico_led_init(void)
+{
+#if defined(PICO_DEFAULT_LED_PIN)
+    // A device like Pico that uses a GPIO for the LED will define PICO_DEFAULT_LED_PIN
+    // so we can use normal GPIO functionality to turn the led on and off
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    return PICO_OK;
+#elif defined(CYW43_WL_GPIO_LED_PIN)
+    // For Pico W devices we need to initialise the driver etc
+    return cyw43_arch_init();
+#endif
+}
+
+// Turn the led on or off
+void pico_set_led(bool led_on)
+{
+#if defined(PICO_DEFAULT_LED_PIN)
+    // Just set the GPIO on or off
+    gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+#elif defined(CYW43_WL_GPIO_LED_PIN)
+    // Ask the wifi "driver" to set the GPIO on or off
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+#endif
+}
+
+// Pico - please, blink LED when program starts
+int led_init(void)
+{
+    int rc = pico_led_init(); // Initialize the LED
+    hard_assert(rc == PICO_OK);
+
+    for (int i = 0; i < 8; i++)
+    {
+        pico_set_led(true);
+        sleep_ms(250); // Wait 250ms
+        pico_set_led(false);
+        sleep_ms(250); // Wait 250ms
+    }
+    return PICO_OK;
+}
+
 /**
  * @brief Timer callback to cycle to the next demo.
  *
@@ -130,7 +165,7 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, STB_INVERTED);
+    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
     start_hub75_driver();
 }
 
@@ -140,11 +175,13 @@ void core1_entry()
 void initialize()
 {
     // Set system clock to 250MHz - just to show that it is possible to drive the HUB75 panel with a high clock speed
-    set_sys_clock_khz(250000, true);
+    // set_sys_clock_khz(250000, true);
+
     stdio_init_all();
+
     critical_section_init(&crit_sec);
 
-    // led_init(); // Initialize LED - blinking at program start
+    led_init(); // Initialize LED - blinking at program start
 
     multicore_reset_core1(); // Reset core 1
 
