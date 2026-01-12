@@ -46,7 +46,7 @@
 //                               0: Program control erasure (erasure at line break)
 //                               1: Register ROUT2<3> controls the pull-up
 //                      0b1  ???
-#define R_UPCTRL 0b0 << 8
+#define R_UPCTRL 0b1 << 8
 //
 // R_FALL_TIME  07:07            Channel output falling edge time selection
 //                               0：35ns
@@ -67,7 +67,7 @@
 //                               When there is no data, only pull-up is performed, and there is no pull-down path;
 //                               when there is data, pull-up and pull-down work at the same time.
 //                      0b1 ???
-#define R_UPCH 0b0 << 5
+#define R_UPCH 0b1 << 5
 //
 // R_EN_AM      04:04            Internal debugging use
 //                      0b1 ???
@@ -90,7 +90,7 @@
 //                               01：10ns
 //                               11: 20ns
 //                       0b00
-#define R_OE 0b01
+#define R_OE 0b00
 
 #define WREG2 R_OE_CH | R_TDM | R_UPCTRL | R_FALL_TIME | R_LATCH | R_UPCH | R_EN_AM | ROUT2 | R_CLK_SDO | R_OE
 
