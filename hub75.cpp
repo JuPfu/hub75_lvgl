@@ -13,35 +13,6 @@
 #include "rul6024.h"
 #include "fm6126a.h"
 
-// Wiring of the HUB75 matrix
-#define DATA_BASE_PIN 0
-#define DATA_N_PINS 6
-#define ROWSEL_BASE_PIN 6
-#define ROWSEL_N_PINS 5
-#define CLK_PIN 11
-#define STROBE_PIN 12
-#define OEN_PIN 13
-
-#define EXIT_FAILURE 1
-
-// #define TEMPORAL_DITHERING // use temporal dithering - remove define to use no dithering
-
-// Scan rate 1 : 32 for a 64x64 matrix panel means 64 pixel height divided by 32 pixel results in 2 rows lit simultaneously.
-// Scan rate 1 : 32 for a 64x64 matrix panel means 64 pixel height divided by 32 pixel results in 2 rows lit simultaneously.
-// Scan rate 1 : 16 for a 64x64 matrix panel means 64 pixel height divided by 16 pixel results in 4 rows lit simultaneously.
-// Scan rate 1 : 16 for a 64x32 matrix panel means 32 pixel height divided by 16 pixel results in 2 rows lit simultaneously.
-// Scan rate 1 : 8 for a 64x32 matrix panel means 32 pixel height divided by 8 pixel results in 4 rows lit simultaneously.
-// Scan rate 1 : 4 for a 32x16 matrix panel means 16 pixel height divided by 4 pixel results in 4 rows lit simultaneously.
-// ...
-// Define either HUB75_MULTIPLEX_2_ROWS or HUB75_MULTIPLEX_2_ROWS to fit your matrix panel.
-
-#define HUB75_MULTIPLEX_2_ROWS // two rows lit simultaneously
-// #define HUB75_MULTIPLEX_4_ROWS // four rows lit simultaneously
-
-#if !defined(HUB75_MULTIPLEX_2_ROWS) && !defined(HUB75_MULTIPLEX_4_ROWS)
-#error "You must define either HUB75_MULTIPLEX_2_ROWS or HUB75_MULTIPLEX_4_ROWS to match your panel's scan rate"
-#endif
-
 // Deduced from https://jared.geek.nz/2013/02/linear-led-pwm/
 // The CIE 1931 lightness formula is what actually describes how we perceive light.
 
@@ -666,14 +637,14 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     while (line < (height >> 2))
     {
         // even src lines
-        dst[0] = LUT_MAPPING(quarter2, src[quarter2], src[quarter2 + 1], src[quarter2 + 2]);
+        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 0], src[quarter2 + 1], src[quarter2 + 2]);
         quarter2 += 3;
-        dst[1] = LUT_MAPPING(quarter4, src[quarter4], src[quarter4 + 1], src[quarter4 + 2]);
+        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 0], src[quarter4 + 1], src[quarter4 + 2]);
         quarter4 += 3;
         // odd src lines
-        dst[line_width + 0] = LUT_MAPPING(quarter1, src[quarter1], src[quarter1 + 1], src[quarter1 + 2]);
+        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 0], src[quarter1 + 1], src[quarter1 + 2]);
         quarter1 += 3;
-        dst[line_width + 1] = LUT_MAPPING(quarter3, src[quarter3], src[quarter3 + 1], src[quarter3 + 2]);
+        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 0], src[quarter3 + 1], src[quarter3 + 2]);
         quarter3 += 3;
 
         dst += 2;
@@ -766,14 +737,14 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
     while (line < (height >> 2))
     {
         // even src lines
-        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 2], src[quarter2 + 1], src[quarter2 + 0]);
+        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 0], src[quarter2 + 1], src[quarter2 + 2]);
         quarter2 += 3;
-        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 2], src[quarter4 + 1], src[quarter4 + 0]);
+        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 0], src[quarter4 + 1], src[quarter4 + 2]);
         quarter4 += 3;
         // odd src lines
-        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 2], src[quarter1 + 1], src[quarter1 + 0]);
+        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 0], src[quarter1 + 1], src[quarter1 + 2]);
         quarter1 += 3;
-        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 2], src[quarter3 + 1], src[quarter3 + 0]);
+        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 0], src[quarter3 + 1], src[quarter3 + 2]);
         quarter3 += 3;
 
         dst += 2;
