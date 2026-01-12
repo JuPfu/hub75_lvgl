@@ -608,13 +608,8 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     uint rgb_offset = offset * 3;
     for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
-#ifdef TEMPORAL_DITHERING
-        frame_buffer[j] = temporal_dithering(j, src[k + 2], src[k + 1], src[k + 0]);
-        frame_buffer[j + 1] = temporal_dithering(j + 1, src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
-#else
-        frame_buffer[j] = no_dithering(src[k + 2], src[k + 1], src[k + 0]);
-        frame_buffer[j + 1] = no_dithering(src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
-#endif
+        frame_buffer[j] = LUT_MAPPING(j, src[k + 2], src[k + 1], src[k + 0]);
+        frame_buffer[j + 1] = LUT_MAPPING(j + 1, src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
     }
 #elif defined HUB75_P10_3535_16X32_4S
     int line = 0;
@@ -638,15 +633,9 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
         int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3
                                              : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
 
-#ifdef TEMPORAL_DITHERING
-        frame_buffer[fb_index] = temporal_dithering(index, src[index], src[index + 1], src[index + 2]);
+        frame_buffer[fb_index] = LUT_MAPPING(index, src[index], src[index + 1], src[index + 2]);
         index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = temporal_dithering(index, src[index], src[index + 1], src[index + 2]);
-#else
-        frame_buffer[fb_index] = (lut[src[index + 0]] << 20) | (lut[src[index + 1]] << 10) | (lut[src[index + 2]]);
-        index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = (lut[src[index + 0]] << 20) | (lut[src[index + 1]] << 10) | (lut[src[index + 2]]);
-#endif
+        frame_buffer[fb_index + 1] = LUT_MAPPING(index, src[index], src[index + 1], src[index + 2]);
 
         if (++counter >= COLUMN_PAIRS)
         {
@@ -676,29 +665,16 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     // Each iteration processes 4 physical rows (2 scan-row pairs)
     while (line < (height >> 2))
     {
-#ifdef TEMPORAL_DITHERING
         // even src lines
-        dst[0] = temporal_dithering(quarter2, src[quarter2], src[quarter2 + 1], src[quarter2 + 2]);
+        dst[0] = LUT_MAPPING(quarter2, src[quarter2], src[quarter2 + 1], src[quarter2 + 2]);
         quarter2 += 3;
-        dst[1] = temporal_dithering(quarter4, src[quarter4], src[quarter4 + 1], src[quarter4 + 2]);
+        dst[1] = LUT_MAPPING(quarter4, src[quarter4], src[quarter4 + 1], src[quarter4 + 2]);
         quarter4 += 3;
         // odd src lines
-        dst[line_width + 0] = temporal_dithering(quarter1, src[quarter1], src[quarter1 + 1], src[quarter1 + 2]);
+        dst[line_width + 0] = LUT_MAPPING(quarter1, src[quarter1], src[quarter1 + 1], src[quarter1 + 2]);
         quarter1 += 3;
-        dst[line_width + 1] = temporal_dithering(quarter3, src[quarter3], src[quarter3 + 1], src[quarter3 + 2]);
+        dst[line_width + 1] = LUT_MAPPING(quarter3, src[quarter3], src[quarter3 + 1], src[quarter3 + 2]);
         quarter3 += 3;
-#else
-        // even src lines
-        dst[0] = pack_lut_bgr(src[quarter2 + 2], src[quarter2 + 1], src[quarter2 + 0], lut);
-        quarter2 += 3;
-        dst[1] = pack_lut_bgr(src[quarter4 + 2], src[quarter4 + 1], src[quarter4 + 0], lut);
-        quarter4 += 3;
-        // odd src lines
-        dst[line_offset + 0] = pack_lut_bgr(src[quarter1 + 2], src[quarter1 + 1], src[quarter1 + 0], lut);
-        quarter1 += 3;
-        dst[line_offset + 1] = pack_lut_bgr(src[quarter3 + 2], src[quarter3 + 1], src[quarter3 + 0], lut);
-        quarter3 += 3;
-#endif
 
         dst += 2;
         p++;
@@ -732,13 +708,8 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
     uint rgb_offset = offset * 3;
     for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
     {
-#ifdef TEMPORAL_DITHERING
-        frame_buffer[j] = temporal_dithering(j, src[k + 0], src[k + 1], src[k + 2]);
-        frame_buffer[j + 1] = temporal_dithering(j + 1, src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
-#else
-        frame_buffer[j] = no_dithering(src[k + 0], src[k + 1], src[k + 2]);
-        frame_buffer[j + 1] = no_dithering(src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
-#endif
+        frame_buffer[j] = LUT_MAPPING(j, src[k + 0], src[k + 1], src[k + 2]);
+        frame_buffer[j + 1] = LUT_MAPPING(j + 1, src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
     }
 #elif defined HUB75_P10_3535_16X32_4S
     int line = 0;
@@ -762,15 +733,9 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
         int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3
                                              : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
 
-#ifdef TEMPORAL_DITHERING
-        frame_buffer[fb_index] = temporal_dithering(index, src[index + 2], src[index + 1], src[index + 0]);
+        frame_buffer[fb_index] = LUT_MAPPING(index, src[index + 2], src[index + 1], src[index + 0]);
         index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = temporal_dithering(index, src[index + 2], src[index + 1], src[index + 0]);
-#else
-        frame_buffer[fb_index] = (lut[src[index + 2]] << 20) | (lut[src[index + 1]] << 10) | (lut[src[index + 0]]);
-        index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = (lut[src[index + 2]] << 20) | (lut[src[index + 1]] << 10) | (lut[src[index + 0]]);
-#endif
+        frame_buffer[fb_index + 1] = LUT_MAPPING(index, src[index + 2], src[index + 1], src[index + 0]);
 
         if (++counter >= COLUMN_PAIRS)
         {
@@ -800,29 +765,16 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
     // Each iteration processes 4 physical rows (2 scan-row pairs)
     while (line < (height >> 2))
     {
-#ifdef TEMPORAL_DITHERING
         // even src lines
-        dst[0] = temporal_dithering(quarter2, src[quarter2 + 2], src[quarter2 + 1], src[quarter2 + 0]);
+        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 2], src[quarter2 + 1], src[quarter2 + 0]);
         quarter2 += 3;
-        dst[1] = temporal_dithering(quarter4, src[quarter4 + 2], src[quarter4 + 1], src[quarter4 + 0]);
+        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 2], src[quarter4 + 1], src[quarter4 + 0]);
         quarter4 += 3;
         // odd src lines
-        dst[line_width + 0] = temporal_dithering(quarter1, src[quarter1 + 2], src[quarter1 + 1], src[quarter1 + 0]);
+        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 2], src[quarter1 + 1], src[quarter1 + 0]);
         quarter1 += 3;
-        dst[line_width + 1] = temporal_dithering(quarter3, src[quarter3 + 2], src[quarter3 + 1], src[quarter3 + 0]);
+        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 2], src[quarter3 + 1], src[quarter3 + 0]);
         quarter3 += 3;
-#else
-        // even src lines
-        dst[0] = pack_lut_bgr(src[quarter2 + 2], src[quarter2 + 1], src[quarter2 + 0], lut);
-        quarter2 += 3;
-        dst[1] = pack_lut_bgr(src[quarter4 + 2], src[quarter4 + 1], src[quarter4 + 0], lut);
-        quarter4 += 3;
-        // odd src lines
-        dst[line_offset + 0] = pack_lut_bgr(src[quarter1 + 2], src[quarter1 + 1], src[quarter1 + 0], lut);
-        quarter1 += 3;
-        dst[line_offset + 1] = pack_lut_bgr(src[quarter3 + 2], src[quarter3 + 1], src[quarter3 + 0], lut);
-        quarter3 += 3;
-#endif
 
         dst += 2;
         p++;
@@ -875,12 +827,7 @@ __attribute__((optimize("unroll-loops"))) void update_area_bgr(const uint8_t *sr
 
         for (int x = x1; x <= x2; ++x)
         {
-#ifdef TEMPORAL_DITHERING
-            frame_buffer[j + l] = temporal_dithering(k, src[k], src[k + 1], src[k + 2]);
-#else
-            frame_buffer[j + l] = no_dithering(
-                src[k], src[k + 1], src[k + 2]);
-#endif
+            frame_buffer[j + l] = LUT_MAPPING(k, src[k], src[k + 1], src[k + 2]);
             j += 2; // advance frame_buffer
             k += 3; // advance source
         }

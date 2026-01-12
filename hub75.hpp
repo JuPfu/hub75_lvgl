@@ -65,7 +65,13 @@
 // TEMPORAL_DITHERING is experimental - development is still in progress
 #undef TEMPORAL_DITHERING // set to '#define TEMPORAL_DITHERING' to use temporal dithering
 
-// --- modifications below this line imply changes in source code ---
+// --- modifications below this line might imply changes in source code ---
+
+#ifdef TEMPORAL_DITHERING
+#define LUT_MAPPING(IDX, R, G, B) temporal_dithering(IDX, R, G, B)
+#else
+#define LUT_MAPPING(IDX, R, G, B) no_dithering(R, G, B)
+#endif
 
 #define EXIT_FAILURE 1
 
