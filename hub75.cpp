@@ -72,10 +72,6 @@ static volatile uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x
 // Control data for the output enable signal - keep volatile!
 static volatile uint32_t oen_finished_data = 0;
 
-const bool clk_polarity = 1;
-const bool stb_polarity = 1;
-const bool oe_polarity = 0;
-
 // Width and height of the HUB75 LED matrix
 static uint width;
 static uint height;
@@ -118,7 +114,7 @@ static volatile uint32_t row_in_bit_plane = 0;
 static const int ACC_SHIFT = (ACC_BITS - 10); // number of low bits preserved in accumulator
 
 // Per-channel accumulators (allocated at runtime)
-static std::vector<uint32_t> acc_r, acc_g, acc_b;
+static std::vector<uint16_t> acc_r, acc_g, acc_b;
 
 // Variables for brightness control
 // Q format shift: Q16 gives 1.0 == (1 << 16) == 65536
@@ -131,7 +127,7 @@ static volatile uint32_t brightness_fp = (1u << BRIGHTNESS_FP_SHIFT); // default
 static volatile uint32_t scaled_basis[BIT_DEPTH];
 
 // Basis factor (coarse brightness); keep as before
-static volatile uint32_t basis_factor = 1u;
+static volatile uint32_t basis_factor = 6u;
 
 inline __attribute__((always_inline)) uint32_t set_row_in_bit_plane(uint32_t row_address, uint32_t bit_plane)
 {
@@ -239,7 +235,7 @@ static void oen_finished_handler()
         // Patch the PIO program to make it shift to the next bit plane
         hub75_data_rgb888_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
     }
-#elif defined(HUB75_P3_1415_16S_64X64)
+#elif defined(HUB75_P3_1415_16S_64X64_S31)
     // plane wise BCM (Binary Coded Modulation)
     if (++row_address >= (height >> 2))
     {
@@ -274,7 +270,7 @@ static void oen_finished_handler()
     dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
-#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64)
+#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
 #endif
 }
@@ -291,7 +287,7 @@ void start_hub75_driver()
     dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
-#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64)
+#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
     dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
 #endif
 }
@@ -315,7 +311,7 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
 
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     offset = width * (height >> 1);
-#elif defined(HUB75_P3_1415_16S_64X64)
+#elif defined(HUB75_P3_1415_16S_64X64_S31)
     offset = width * (height >> 2);
 #endif
 
@@ -441,7 +437,7 @@ static void setup_dma_transfers()
 {
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     dma_input_channel_setup(pixel_chan, width << 1, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
-#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64)
+#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
     dma_input_channel_setup(pixel_chan, width << 2, DMA_SIZE_32, true, dummy_pixel_chan, pio_config.data_pio, pio_config.sm_data);
 #endif
 
@@ -514,14 +510,14 @@ static inline int claim_dma_channel(const char *channel_name)
 uint32_t temporal_dithering(size_t j, uint8_t r, uint8_t g, uint8_t b)
 {
     // --- 1. Expand 8-bit RGB using LUT ---
-    uint32_t b16 = lut[b];
-    uint32_t g16 = lut[g];
-    uint32_t r16 = lut[r];
+    uint16_t b16 = lut[b];
+    uint16_t g16 = lut[g];
+    uint16_t r16 = lut[r];
 
     // --- 2. Add residue  ---
-    uint32_t new_r = r16 + acc_r[j];
-    uint32_t new_g = g16 + acc_g[j];
-    uint32_t new_b = b16 + acc_b[j];
+    uint16_t new_r = r16 + acc_r[j];
+    uint16_t new_g = g16 + acc_g[j];
+    uint16_t new_b = b16 + acc_b[j];
 
     // --- 3. Clamp to 16-bit maximum ---
     if (new_r > 4095)
@@ -533,9 +529,9 @@ uint32_t temporal_dithering(size_t j, uint8_t r, uint8_t g, uint8_t b)
 
     // --- 4. Quantize to 10-bit output and compute fractional error ---
     // Scale 16-bit → 10-bit (divide by 64)
-    uint32_t out_r = new_r >> ACC_SHIFT;
-    uint32_t out_g = new_g >> ACC_SHIFT;
-    uint32_t out_b = new_b >> ACC_SHIFT;
+    uint32_t out_r = r16 >> ACC_SHIFT;
+    uint32_t out_g = g16 >> ACC_SHIFT;
+    uint32_t out_b = b16 >> ACC_SHIFT;
 
     // Residual = remainder of division (fractional component)
     acc_r[j] = new_r & 0x3;
@@ -576,11 +572,12 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     // Interweave pixels as required by Hub75 LED panel matrix
 
 #ifdef HUB75_MULTIPLEX_2_ROWS
-    uint rgb_offset = offset * 3;
-    for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
+    constexpr uint total_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT;
+    const uint rgb_offset = offset * 3;
+    for (size_t i = 0, j = 0; i < total_pixels; j += 3, i += 2)
     {
-        frame_buffer[j] = LUT_MAPPING(j, src[k + 2], src[k + 1], src[k + 0]);
-        frame_buffer[j + 1] = LUT_MAPPING(j + 1, src[rgb_offset + k + 2], src[rgb_offset + k + 1], src[rgb_offset + k + 0]);
+        frame_buffer[i] = LUT_MAPPING_RGB(i, src[j], src[j + 1], src[j + 2]);
+        frame_buffer[i + 1] = LUT_MAPPING_RGB(i, src[rgb_offset + j], src[rgb_offset + j + 1], src[rgb_offset + j + 2]);
     }
 #elif defined HUB75_P10_3535_16X32_4S
     int line = 0;
@@ -604,9 +601,9 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
         int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3
                                              : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
 
-        frame_buffer[fb_index] = LUT_MAPPING(index, src[index], src[index + 1], src[index + 2]);
+        frame_buffer[fb_index] = LUT_MAPPING_RGB(index, src[index], src[index + 1], src[index + 2]);
         index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = LUT_MAPPING(index, src[index], src[index + 1], src[index + 2]);
+        frame_buffer[fb_index + 1] = LUT_MAPPING_RGB(index, src[index], src[index + 1], src[index + 2]);
 
         if (++counter >= COLUMN_PAIRS)
         {
@@ -614,9 +611,9 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
             ++line;
         }
     }
-#elif defined HUB75_P3_1415_16S_64X64
+#elif defined HUB75_P3_1415_16S_64X64_S31
     constexpr uint total_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT;
-    constexpr uint line_offset = 2 * MATRIX_PANEL_WIDTH;
+    constexpr uint line_width = 2 * MATRIX_PANEL_WIDTH;
 
     constexpr uint quarter = (total_pixels >> 2) * 3;
 
@@ -637,14 +634,14 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     while (line < (height >> 2))
     {
         // even src lines
-        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 0], src[quarter2 + 1], src[quarter2 + 2]);
+        dst[0] = LUT_MAPPING_RGB(quarter2, src[quarter2], src[quarter2 + 1], src[quarter2 + 2]);
         quarter2 += 3;
-        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 0], src[quarter4 + 1], src[quarter4 + 2]);
+        dst[1] = LUT_MAPPING_RGB(quarter4, src[quarter4], src[quarter4 + 1], src[quarter4 + 2]);
         quarter4 += 3;
         // odd src lines
-        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 0], src[quarter1 + 1], src[quarter1 + 2]);
+        dst[line_width + 0] = LUT_MAPPING_RGB(quarter1, src[quarter1], src[quarter1 + 1], src[quarter1 + 2]);
         quarter1 += 3;
-        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 0], src[quarter3 + 1], src[quarter3 + 2]);
+        dst[line_width + 1] = LUT_MAPPING_RGB(quarter3, src[quarter3], src[quarter3 + 1], src[quarter3 + 2]);
         quarter3 += 3;
 
         dst += 2;
@@ -655,107 +652,7 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
         {
             p = 0;
             line++;
-            dst += line_offset; // advance to next scan-row pair
-        }
-    }
-#endif
-}
-
-/**
- * @brief Updates the frame buffer with pixel data from the source array.
- *
- * This function takes a source array of pixel data and updates the frame buffer
- * with interleaved pixel values. The pixel values are cie luminance / gamma-corrected to 10 bits using a lookup table.
- * Dithering is applied before the pixel data is output to the matrix panel.
- *
- * @param src Pointer to the source pixel data array (RGB888 format).
- */
-__attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
-{
-    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
-    // Interweave pixels as required by Hub75 LED panel matrix
-
-#ifdef HUB75_MULTIPLEX_2_ROWS
-    uint rgb_offset = offset * 3;
-    for (int j = 0, k = 0; j < width * height; j += 2, k += 3)
-    {
-        frame_buffer[j] = LUT_MAPPING(j, src[k + 0], src[k + 1], src[k + 2]);
-        frame_buffer[j + 1] = LUT_MAPPING(j + 1, src[rgb_offset + k + 0], src[rgb_offset + k + 1], src[rgb_offset + k + 2]);
-    }
-#elif defined HUB75_P10_3535_16X32_4S
-    int line = 0;
-    int counter = 0;
-
-    constexpr int COLUMN_PAIRS = MATRIX_PANEL_WIDTH >> 1;
-    constexpr int HALF_PAIRS = COLUMN_PAIRS >> 1;
-
-    constexpr int PAIR_HALF_BIT = HALF_PAIRS;
-    constexpr int PAIR_HALF_SHIFT = __builtin_ctz(HALF_PAIRS);
-
-    constexpr int ROW_STRIDE = MATRIX_PANEL_WIDTH;
-    constexpr int ROWS_PER_GROUP = MATRIX_PANEL_HEIGHT / SCAN_GROUPS;
-    constexpr int GROUP_ROW_OFFSET = ROWS_PER_GROUP * ROW_STRIDE;
-    constexpr int HALF_PANEL_OFFSET = ((MATRIX_PANEL_HEIGHT >> 1) * ROW_STRIDE) * 3;
-
-    constexpr int total_pairs = (MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT) >> 1;
-
-    for (int j = 0, fb_index = 0; j < total_pairs; ++j, fb_index += 2)
-    {
-        int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3
-                                             : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
-
-        frame_buffer[fb_index] = LUT_MAPPING(index, src[index + 2], src[index + 1], src[index + 0]);
-        index += HALF_PANEL_OFFSET;
-        frame_buffer[fb_index + 1] = LUT_MAPPING(index, src[index + 2], src[index + 1], src[index + 0]);
-
-        if (++counter >= COLUMN_PAIRS)
-        {
-            counter = 0;
-            ++line;
-        }
-    }
-#elif defined HUB75_P3_1415_16S_64X64
-    constexpr uint total_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT;
-    constexpr uint line_offset = 2 * MATRIX_PANEL_WIDTH;
-
-    constexpr uint quarter = (total_pixels >> 2) * 3;
-
-    uint quarter1 = 0 * quarter;
-    uint quarter2 = 1 * quarter;
-    uint quarter3 = 2 * quarter;
-    uint quarter4 = 3 * quarter;
-
-    uint p = 0; // per line pixel counter
-
-    // Number of logical rows processed
-    uint line = 0;
-
-    // Framebuffer write pointer
-    volatile uint32_t *dst = frame_buffer;
-
-    // Each iteration processes 4 physical rows (2 scan-row pairs)
-    while (line < (height >> 2))
-    {
-        // even src lines
-        dst[0] = LUT_MAPPING(quarter2, src[quarter2 + 0], src[quarter2 + 1], src[quarter2 + 2]);
-        quarter2 += 3;
-        dst[1] = LUT_MAPPING(quarter4, src[quarter4 + 0], src[quarter4 + 1], src[quarter4 + 2]);
-        quarter4 += 3;
-        // odd src lines
-        dst[line_offset + 0] = LUT_MAPPING(quarter1, src[quarter1 + 0], src[quarter1 + 1], src[quarter1 + 2]);
-        quarter1 += 3;
-        dst[line_offset + 1] = LUT_MAPPING(quarter3, src[quarter3 + 0], src[quarter3 + 1], src[quarter3 + 2]);
-        quarter3 += 3;
-
-        dst += 2;
-        p++;
-
-        // End of logical row
-        if (p == width)
-        {
-            p = 0;
-            line++;
-            dst += line_offset; // advance to next scan-row pair
+            dst += line_width; // advance to next scan-row pair
         }
     }
 #endif
@@ -798,7 +695,7 @@ __attribute__((optimize("unroll-loops"))) void update_area_bgr(const uint8_t *sr
 
         for (int x = x1; x <= x2; ++x)
         {
-            frame_buffer[j + l] = LUT_MAPPING(k, src[k], src[k + 1], src[k + 2]);
+            frame_buffer[j + l] = LUT_MAPPING_RGB(k, src[k], src[k + 1], src[k + 2]);
             j += 2; // advance frame_buffer
             k += 3; // advance source
         }

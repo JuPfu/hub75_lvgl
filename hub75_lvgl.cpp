@@ -82,7 +82,7 @@ uint32_t get_milliseconds_since_boot()
  * depending on LVGL configuration).
  *
  * For the Hub75 driver, we assume that the entire screen is updated each time
- * (full frame flush), and the buffer is passed to `update_bgr()` which converts
+ * (full frame flush), and the buffer is passed to `update()` which converts
  * and writes it to the physical framebuffer or triggers a transfer.
  *
  * After the pixel data is processed, `lv_display_flush_ready()` must be called
@@ -95,7 +95,7 @@ uint32_t get_milliseconds_since_boot()
  */
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 {
-    update_bgr(px_map);              ///< Transfer buffer to display driver
+    update(px_map);                  ///< Transfer buffer to display driver
     lv_display_flush_ready(display); ///< Notify LVGL that flush is complete
 }
 
