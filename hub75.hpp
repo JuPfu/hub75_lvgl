@@ -17,7 +17,7 @@
 #define ROWSEL_BASE_PIN 6 // start gpio pin of address pins
 #endif
 #ifndef ROWSEL_N_PINS
-#define ROWSEL_N_PINS 4 // count of consecutive address pins - adapt to the number of address pins of your panel
+#define ROWSEL_N_PINS 5 // count of consecutive address pins - adapt to the number of address pins of your panel
 #endif
 #ifndef CLK_PIN
 #define CLK_PIN 11
@@ -59,12 +59,20 @@
 
 // set your panel type
 // e.g. P3-64*64-32S-V2.0 might have a RUL6024 chip, if so, set PANEL_TYPE to PANEL_RUL6024
-#define PANEL_TYPE PANEL_RUL6024
+#define PANEL_TYPE PANEL_GENERIC
 
 #define INVERTED_STB false
 
 // TEMPORAL_DITHERING is experimental - development is still in progress
-#undef TEMPORAL_DITHERING // set to '#define TEMPORAL_DITHERING' to use temporal dithering
+#define TEMPORAL_DITHERING // set to '#define TEMPORAL_DITHERING' to use temporal dithering
+
+#define SM_CLOCKDIV 1
+#if SM_CLOCKDIV != 0
+// To prevent flicker or ghosting it might be wort a try to reduce state machine speed.
+// For panels with height less or equal to 16 rows try a factor of 8.0f
+// For panels with height less or equal to 32 rows try a factor of 2.0f or 4.0f
+#define SM_CLOCKDIV_FACTOR 8.0f
+#endif
 
 // --- modifications below this line might imply changes in source code ---
 
