@@ -50,7 +50,7 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ## Integrating LVGL into a Pico Project
 
-Currently **LVGL** version 9.3.0 is integrated in the project. If you want to switch to another version follow the step described here:
+Currently **LVGL** version 9.3.0 is integrated in the project. If you want to switch to another version follow the steps described here:
 
 1. **Download** the latest version of [LVGL](https://github.com/lvgl/lvgl)
 2. **Extract** the zip and rename the folder to `lvgl`
