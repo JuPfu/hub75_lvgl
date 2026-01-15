@@ -50,6 +50,8 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ## Integrating LVGL into a Pico Project
 
+Currently **LVGL** version 9.3.0 is integrated in the project. If you want to switch on another version follow the step described here:
+
 1. **Download** the latest version of [LVGL](https://github.com/lvgl/lvgl)
 2. **Extract** the zip and rename the folder to `lvgl`
 3. **Copy** it into your project's top-level directory
@@ -95,7 +97,7 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ## Connecting LVGL to the HUB75 Driver
 
-To render LVGL output on the HUB75 panel, you need
+The steps below describe how **LVGL** is connected to the HUB75 driver in this project. This can be the basis for your modifications.
 
 ### 1. Millisecond Tick Source
 
