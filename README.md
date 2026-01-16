@@ -118,12 +118,12 @@ Connects LVGL's draw buffer to the HUB75 display. The parameter *area is not use
 ```c
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 {
-    update_bgr(px_map);              // Transfer buffer to HUB75 driver
+    update(px_map);                  // Transfer buffer to HUB75 driver
     lv_display_flush_ready(display); // Notify LVGL that flush is complete
 }
 ```
 
-> `update_bgr()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75/blob/main/hub75.cpp) driver.
+> `update()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75/blob/main/hub75.cpp) driver.
 
 ### 3. Choose LV_DISPLAY_RENDER_MODE_FULL
 
