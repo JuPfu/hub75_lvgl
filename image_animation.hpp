@@ -7,6 +7,7 @@
 #include "lvgl/src/widgets/image/lv_image.h"
 
 #include "vanessa_mai_64x64.h"
+#include "matreshka_32x16.h"
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
 class ImageAnimation
@@ -54,8 +55,16 @@ public:
         header.reserved_2 = 0;
 
         img_desc.header = header;
-        img_desc.data_size = sizeof(vanessa_mai_64x64);
-        img_desc.data = vanessa_mai_64x64;
+        if (width == 32 && height == 16)
+        {
+            img_desc.data_size = sizeof(matreshka_32x16);
+            img_desc.data = matreshka_32x16;
+        }
+        else
+        {
+            img_desc.data_size = sizeof(vanessa_mai_64x64);
+            img_desc.data = vanessa_mai_64x64;
+        }
 
         lv_image_set_src(vanessa, &img_desc);
         lv_image_set_antialias(vanessa, true);
