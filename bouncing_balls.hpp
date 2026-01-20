@@ -27,6 +27,7 @@ private:
     };
 
     uint width, height;
+    uint quantityOfBalls;
 
     std::vector<mPoint> mShapes;
 
@@ -43,8 +44,13 @@ private:
     lv_style_t scrolling_label_style;
 
 public:
-    explicit BouncingBalls(uint quantityOfBalls = 10, uint width = 64, uint height = 64) : width(width), height(height)
+    explicit BouncingBalls(uint quantityOfBalls = 10, uint width = 64, uint height = 64) : width(width), height(height), quantityOfBalls(quantityOfBalls)
     {
+        if (width <= 32)
+        {
+            quantityOfBalls = std::min((uint)3, quantityOfBalls);
+        }
+
         mShapes.reserve(quantityOfBalls);
 
         data_buf = new uint8_t[width * height * BYTES_PER_PIXEL]();
@@ -75,7 +81,14 @@ public:
         lv_style_init(&label_style);
         lv_style_set_text_color(&label_style, lv_color_make(250, 250, 250));
         lv_obj_t *label1 = lv_label_create(screen);
-        lv_label_set_text(label1, "Hello\nworld\xEF\x80\x8C");
+        if (width <= 32)
+        {
+            lv_label_set_text(label1, "Hello");
+        }
+        else
+        {
+            lv_label_set_text(label1, "Hello\nworld\xEF\x80\x8C");
+        }
         lv_obj_align(label1, LV_ALIGN_TOP_MID, 0, 0);
         lv_obj_add_style(label1, &label_style, LV_STATE_DEFAULT);
 
