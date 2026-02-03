@@ -55,7 +55,7 @@ static const uint16_t lut[256] = {
 #endif
 
 // Frame buffer for the HUB75 matrix - memory area where pixel data is stored
-volatile uint32_t *frame_buffer; ///< Interwoven image data for examples;
+uint32_t *frame_buffer; ///< Interwoven image data for examples;
 
 static uint16_t *src_map;
 
@@ -68,9 +68,9 @@ static void setup_dma_transfers();
 static void setup_dma_irq();
 
 // Dummy pixel data emitted at the end of each row to ensure the last genuine pixels of a row are displayed - keep volatile!
-static volatile uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+static uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 // Control data for the output enable signal - keep volatile!
-static volatile uint32_t oen_finished_data = 0;
+static uint32_t oen_finished_data = 0;
 
 // Width and height of the HUB75 LED matrix
 static uint width;
@@ -103,9 +103,9 @@ typedef struct
 static PioConfig pio_config;
 
 // Variables for row addressing and bit plane selection
-static volatile uint32_t row_address = 0;
-static volatile uint32_t bit_plane = 0;
-static volatile uint32_t row_in_bit_plane = 0;
+static uint32_t row_address = 0;
+static uint32_t bit_plane = 0;
+static uint32_t row_in_bit_plane = 0;
 
 // Accumulator precision has to fit the lut precision.
 #define ACC_BITS 12
@@ -633,7 +633,7 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     uint line = 0;
 
     // Framebuffer write pointer
-    volatile uint32_t *dst = frame_buffer;
+    uint32_t *dst = frame_buffer;
 
     // Each iteration processes 4 physical rows (2 scan-row pairs)
     while (line < (height >> 2))
