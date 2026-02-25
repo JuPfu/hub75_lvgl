@@ -67,7 +67,7 @@
 #define INVERTED_STB false
 
 // TEMPORAL_DITHERING is experimental - development is still in progress
-#undef TEMPORAL_DITHERING // set to '#define TEMPORAL_DITHERING' to use temporal dithering
+#define TEMPORAL_DITHERING // set to '#define TEMPORAL_DITHERING' to use temporal dithering
 
 #define SM_CLOCKDIV 1
 #if SM_CLOCKDIV != 0
