@@ -1,0 +1,27 @@
+{
+    "name": "hub75_lvgl",
+    "version": "1.3.0",
+    "description": "LVGL driver for a Hub75 LED matrix panel for Raspberry Pi Pico",
+    "keywords": "Pico, RP2040, RP2350, LVGL, HUB75, C-SDK, PIO, DMA, Driver",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/JuPfu/hub75_lvgl"
+    },
+    "authors": [
+        {
+            "name": "Jürgen Pfundt",
+            "email": "juergen.pfundt@gmail.com",
+            "url": "https://github.com/JuPfu",
+            "maintainer": true
+        }
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/JuPfu/hub75_lvgl",
+    "frameworks": "arduino",
+    "platforms": "raspberrypi",
+    "build": {
+        "srcDir": "src",
+        "srcFilter": "+<*>"
+    },
+    "headers": "hub75.hpp"
+}

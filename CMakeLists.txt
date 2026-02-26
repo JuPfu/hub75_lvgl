@@ -38,14 +38,14 @@ pico_sdk_init()
 add_executable(hub75_lvgl hub75_lvgl.cpp)
 
 pico_set_program_name(hub75_lvgl "hub75_lvgl")
-pico_set_program_version(hub75_lvgl "1.2")
+pico_set_program_version(hub75_lvgl "1.3")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(hub75_lvgl 0)
 pico_enable_stdio_usb(hub75_lvgl 1)
 
 # Generate PIO header
-pico_generate_pio_header(hub75_lvgl ${CMAKE_CURRENT_LIST_DIR}/hub75.pio)
+pico_generate_pio_header(hub75_lvgl ${CMAKE_CURRENT_LIST_DIR}/src/hub75.pio)
 
 # Add the lvgl library
 message(NOTICE "===>>> LVGL configuration start ===") 
@@ -65,18 +65,20 @@ add_subdirectory(${LVGL_DIR_NAME})
 message(NOTICE "=== LVGL configuraton end <<<===") 
 
 target_sources(hub75_lvgl PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}/hub75.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/hub75.cpp
         ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/fm6126a.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/rul6024.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/bouncing_balls.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/fire_effect.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/image_animation.hpp
-        ${CMAKE_CURRENT_LIST_DIR}/colour_check.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/fm6126a.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/rul6024.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/bouncing_balls.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/fire_effect.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/image_animation.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/colour_check.cpp
         )
 
 # Add the standard include files to the build
 target_include_directories(hub75_lvgl PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}/examples
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
