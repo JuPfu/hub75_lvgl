@@ -7,6 +7,7 @@
 #include "pico/stdlib.h"
 #include "pico/printf.h"
 #include "pico/sync.h"
+#include "pico/multicore.h"
 
 #include "hub75.hpp"
 #include "hub75.pio.h"
@@ -98,7 +99,6 @@ static struct
     PIO dummy_data_pio;
     uint dummy_data_prog_offs;
 } pio_config;
-
 
 // Variables for row addressing and bit plane selection
 static uint32_t row_address = 0;
@@ -218,7 +218,7 @@ void init_accumulators(std::size_t pixel_count)
 static void oen_finished_handler()
 {
     // Clear the interrupt request for the finished DMA channel
-    dma_hw->ints0 = 1u << oen_finished_chan;
+    dma_channel_acknowledge_irq1(oen_finished_chan);
 
     // Advance row addressing; reset and increment bit-plane if needed
 #if defined(HUB75_MULTIPLEX_2_ROWS)
@@ -274,23 +274,6 @@ static void oen_finished_handler()
 }
 
 /**
- * @brief Starts the DMA transfers for the HUB75 display driver.
- *
- * This function initializes the DMA transfers by setting up the write address
- * for the Output Enable finished DMA channel and the read address for pixel data.
- * It ensures that the display begins processing frames.
- */
-void start_hub75_driver()
-{
-    dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
-#if defined(HUB75_MULTIPLEX_2_ROWS)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
-#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
-#endif
-}
-
-/**
  * @brief Initializes the HUB75 display by setting up DMA and PIO subsystems.
  *
  * This function configures the necessary hardware components to drive a HUB75
@@ -305,7 +288,7 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
     width = w;
     height = h;
 
-    frame_buffer = std::make_unique<uint32_t[]>(width * height) ; // Allocate memory for frame buffer and zero-initialize
+    frame_buffer = std::make_unique<uint32_t[]>(width * height); // Allocate memory for frame buffer and zero-initialize
 
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     offset = width * (height >> 1);
@@ -330,8 +313,41 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
     configure_dma_channels();
     setup_dma_transfers();
     setup_dma_irq();
-
     recompute_scaled_basis();
+}
+
+/**
+ * @brief Secondary core entry point - creates and starts driver for HUB75 rgb matrix.
+ */
+void core1_entry()
+{
+    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
+
+    dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
+#if defined(HUB75_MULTIPLEX_2_ROWS)
+    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
+#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
+    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
+#endif
+
+    // KEEP CORE 1 ALIVE — without this, Core 1's NVIC is torn down and DMA_IRQ_1 stops firing
+    while (true)
+    {
+        tight_loop_contents();
+    }
+}
+
+/**
+ * @brief Starts the DMA transfers for the HUB75 display driver.
+ *
+ * This function initializes the DMA transfers by setting up the write address
+ * for the Output Enable finished DMA channel and the read address for pixel data.
+ * It ensures that the display begins processing frames.
+ */
+void start_hub75_driver()
+{
+    multicore_reset_core1();             // Reset core 1
+    multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
 }
 
 /**
@@ -343,23 +359,40 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
  */
 static void configure_pio(bool inverted_stb)
 {
-    if (!pio_claim_free_sm_and_add_program(&hub75_data_rgb888_program, &pio_config.data_pio, &pio_config.sm_data, &pio_config.data_prog_offs))
+    // On RP2350B, GPIO 30-47 are only accessible via PIO2
+    // Force both state machines onto PIO2
+    if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+            &hub75_data_rgb888_program,
+            &pio_config.data_pio,
+            &pio_config.sm_data,
+            &pio_config.data_prog_offs,
+            DATA_BASE_PIN, DATA_N_PINS + 1, true)) // +1 for CLK
     {
-        panic("Failed to claim PIO state machine for hub75_data_rgb888_program\n");
+        panic("Failed to claim PIO SM for hub75_data_rgb888_program\n");
     }
 
     if (inverted_stb)
     {
-        if (!pio_claim_free_sm_and_add_program(&hub75_row_inverted_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
+        if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+                &hub75_row_inverted_program,
+                &pio_config.row_pio,
+                &pio_config.sm_row,
+                &pio_config.row_prog_offs,
+                ROWSEL_BASE_PIN, ROWSEL_N_PINS + 2, true)) // +2 for STROBE+OEN
         {
-            panic("Failed to claim PIO state machine for hub75_row_inverted_program\n");
+            panic("Failed to claim PIO SM for hub75_row_inverted_program\n");
         }
     }
     else
     {
-        if (!pio_claim_free_sm_and_add_program(&hub75_row_program, &pio_config.row_pio, &pio_config.sm_row, &pio_config.row_prog_offs))
+        if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+                &hub75_row_program,
+                &pio_config.row_pio,
+                &pio_config.sm_row,
+                &pio_config.row_prog_offs,
+                ROWSEL_BASE_PIN, ROWSEL_N_PINS + 2, true)) // +2 for STROBE+OEN
         {
-            panic("Failed to claim PIO state machine for hub75_row_program\n");
+            panic("Failed to claim PIO SM for hub75_row_program\n");
         }
     }
 
@@ -417,12 +450,12 @@ static void dma_input_channel_setup(uint channel,
     channel_config_set_chain_to(&conf, chain_to);
 
     dma_channel_configure(
-        channel,        // Channel to be configured
-        &conf,          // DMA configuration
-        &pio->txf[sm],  // Write address: PIO TX FIFO
-        NULL,           // Read address: set later
-        transfer_count, // Number of transfers per transaction
-        false           // Do not start transfer immediately
+        channel,                                   // Channel to be configured
+        &conf,                                     // DMA configuration
+        &pio->txf[sm],                             // Write address: PIO TX FIFO
+        NULL,                                      // Read address: set later
+        dma_encode_transfer_count(transfer_count), // Number of transfers per transaction
+        false                                      // Do not start transfer immediately
     );
 }
 
@@ -457,7 +490,7 @@ static void setup_dma_transfers()
     channel_config_set_read_increment(&oen_finished_config, false);
     channel_config_set_write_increment(&oen_finished_config, false);
     channel_config_set_dreq(&oen_finished_config, pio_get_dreq(pio_config.row_pio, pio_config.sm_row, false));
-    dma_channel_configure(oen_finished_chan, &oen_finished_config, &oen_finished_data, &pio_config.row_pio->rxf[pio_config.sm_row], 1, false);
+    dma_channel_configure(oen_finished_chan, &oen_finished_config, &oen_finished_data, &pio_config.row_pio->rxf[pio_config.sm_row], dma_encode_transfer_count(1), false);
 }
 
 /**
@@ -469,9 +502,9 @@ static void setup_dma_transfers()
  */
 static void setup_dma_irq()
 {
-    irq_set_exclusive_handler(DMA_IRQ_0, oen_finished_handler);
-    dma_channel_set_irq0_enabled(oen_finished_chan, true);
-    irq_set_enabled(DMA_IRQ_0, true);
+    irq_set_exclusive_handler(DMA_IRQ_1, oen_finished_handler);
+    dma_channel_set_irq1_enabled(oen_finished_chan, true);
+    irq_set_enabled(DMA_IRQ_1, true);
 }
 
 /**

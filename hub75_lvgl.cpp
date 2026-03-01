@@ -12,6 +12,7 @@
 #include "hardware/clocks.h"
 
 #include "hub75.hpp"
+
 #include "lvgl/src/lv_init.h"
 #include "lvgl/src/core/lv_refr.h"
 #include "lvgl/src/display/lv_display.h"
@@ -111,6 +112,8 @@ int pico_led_init(void)
 #elif defined(CYW43_WL_GPIO_LED_PIN)
     // For Pico W devices we need to initialise the driver etc
     return cyw43_arch_init();
+#else
+    return PICO_OK;
 #endif
 }
 
@@ -159,17 +162,6 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
 }
 
 /**
- * @brief Secondary core entry point.
- *
- * Initializes and starts the HUB75 driver on core 1.
- */
-void core1_entry()
-{
-    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
-    start_hub75_driver();
-}
-
-/**
  * @brief Initializes the Pico system and launches core 1.
  */
 void initialize()
@@ -183,9 +175,9 @@ void initialize()
 
     led_init(); // Initialize LED - blinking at program start
 
-    multicore_reset_core1(); // Reset core 1
+    start_hub75_driver(); // create and start hub75 driver - the driver is running on core1
 
-    multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
+    printf("start_hub75_driver started\n");
 }
 
 /**
