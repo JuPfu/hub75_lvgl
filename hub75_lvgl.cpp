@@ -29,7 +29,6 @@
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888)) ///< RGB888 color depth
 
-
 /// @brief Enum for selecting animation demos
 enum DemoIndex
 {
@@ -39,8 +38,8 @@ enum DemoIndex
     DEMO_COLOUR,
 };
 
-static critical_section_t crit_sec = {0};                                   ///< Synchronization for safe time reading
-static int frame_index = DEMO_BOUNCE;                                       ///< Current demo index
+static critical_section_t crit_sec = {0};                                       ///< Synchronization for safe time reading
+static int frame_index = DEMO_BOUNCE;                                           ///< Current demo index
 static uint8_t buf1[MATRIX_PANEL_WIDTH * MATRIX_PANEL_WIDTH * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
@@ -162,22 +161,47 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
 }
 
 /**
+ * @brief Secondary core entry point.
+ *
+ * Initializes and starts the HUB75 driver on core 1.
+ */
+void core1_entry()
+{
+    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
+    start_hub75_driver();
+
+    // KEEP CORE 1 ALIVE — without this, Core 1's NVIC is torn down and DMA_IRQ_1 stops firing
+    //
+    // Add your additional tasks for core1 here
+    while (true)
+    {
+        tight_loop_contents();
+    }
+}
+
+/**
  * @brief Initializes the Pico system and launches core 1.
  */
 void initialize()
 {
     // Set system clock to 250MHz - just to show that it is possible to drive the HUB75 panel with a high clock speed
-    set_sys_clock_khz(250000, true);
+    set_sys_clock_khz(266000, true);
 
-    stdio_init_all();
+    stdio_init_all(); // Initialize Pico SDK
 
     critical_section_init(&crit_sec);
 
     led_init(); // Initialize LED - blinking at program start
 
-    start_hub75_driver(); // create and start hub75 driver - the driver is running on core1
-
-    printf("start_hub75_driver started\n");
+#if HUB75_MULTICORE == true
+    // Run hub75 driver on core1
+    multicore_reset_core1();             // Reset core 1
+    multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
+#else
+    // Run hub75 on core0 - the Hub75 driver is doing its job here
+    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
+    start_hub75_driver();
+#endif
 }
 
 /**

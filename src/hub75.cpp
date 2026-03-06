@@ -4,6 +4,10 @@
 
 #include "hardware/dma.h"
 
+#include "hardware/dma.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+
 #include "pico/stdlib.h"
 #include "pico/printf.h"
 #include "pico/sync.h"
@@ -18,6 +22,7 @@
 // Deduced from https://jared.geek.nz/2013/02/linear-led-pwm/
 // The CIE 1931 lightness formula is what actually describes how we perceive light.
 
+#if BIT_DEPTH == 10
 #if TEMPORAL_DITHERING != false
 static const uint16_t lut[256] = {
     0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 18, 20, 21, 23, 25, 27,
@@ -55,22 +60,62 @@ static const uint16_t lut[256] = {
     734, 742, 751, 759, 768, 776, 785, 794, 802, 811, 820, 829, 838, 847, 857, 866,
     875, 885, 894, 903, 913, 923, 932, 942, 952, 962, 972, 982, 992, 1002, 1013, 1023};
 #endif
+#elif BIT_DEPTH == 8
+#if TEMPORAL_DITHERING != false
+static const uint16_t lut[256] = {
+    0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7,
+    7, 8, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 15,
+    15, 16, 17, 17, 18, 19, 19, 20, 21, 22, 22, 23, 24, 25, 26, 27,
+    28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44,
+    45, 47, 48, 50, 51, 52, 54, 55, 57, 58, 60, 61, 63, 65, 66, 68,
+    70, 71, 73, 75, 77, 79, 81, 83, 84, 86, 88, 90, 93, 95, 97, 99,
+    101, 103, 106, 108, 110, 113, 115, 118, 120, 123, 125, 128, 130, 133, 136, 138,
+    141, 144, 147, 149, 152, 155, 158, 161, 164, 167, 171, 174, 177, 180, 183, 187,
+    190, 194, 197, 200, 204, 208, 211, 215, 218, 222, 226, 230, 234, 237, 241, 245,
+    249, 254, 258, 262, 266, 270, 275, 279, 283, 288, 292, 297, 301, 306, 311, 315,
+    320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370, 376, 381, 386, 392, 397,
+    403, 408, 414, 420, 425, 431, 437, 443, 449, 455, 461, 467, 473, 480, 486, 492,
+    499, 505, 512, 518, 525, 532, 538, 545, 552, 559, 566, 573, 580, 587, 594, 601,
+    609, 616, 624, 631, 639, 646, 654, 662, 669, 677, 685, 693, 701, 709, 717, 726,
+    734, 742, 751, 759, 768, 776, 785, 794, 802, 811, 820, 829, 838, 847, 857, 866,
+    875, 885, 894, 903, 913, 923, 932, 942, 952, 962, 972, 982, 992, 1002, 1013, 1023};
+#else
+static const uint16_t lut[256] = {
+    0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4,
+    4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7,
+    7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11, 11,
+    11, 12, 12, 12, 13, 13, 13, 14, 14, 15, 15, 15, 16, 16, 17, 17,
+    17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25,
+    25, 26, 26, 27, 28, 28, 29, 29, 30, 31, 31, 32, 32, 33, 34, 34,
+    35, 36, 37, 37, 38, 39, 39, 40, 41, 42, 43, 43, 44, 45, 46, 47,
+    47, 48, 49, 50, 51, 52, 53, 54, 54, 55, 56, 57, 58, 59, 60, 61,
+    62, 63, 64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75, 76, 77, 79,
+    80, 81, 82, 83, 85, 86, 87, 88, 90, 91, 92, 94, 95, 96, 98, 99,
+    100, 102, 103, 105, 106, 108, 109, 110, 112, 113, 115, 116, 118, 120, 121, 123,
+    124, 126, 128, 129, 131, 132, 134, 136, 138, 139, 141, 143, 145, 146, 148, 150,
+    152, 154, 155, 157, 159, 161, 163, 165, 167, 169, 171, 173, 175, 177, 179, 181,
+    183, 185, 187, 189, 191, 193, 196, 198, 200, 202, 204, 207, 209, 211, 214, 216,
+    218, 220, 223, 225, 228, 230, 232, 235, 237, 240, 242, 245, 247, 250, 252, 255};
+#endif
+#endif
 
 // Frame buffer for the HUB75 matrix - memory area where pixel data is stored
-std::unique_ptr<uint32_t[]> frame_buffer; ///< Interwoven image data for examples;
-
-// Utility function to claim a DMA channel and panic() if there are none left
-static int claim_dma_channel(const char *channel_name);
+volatile uint32_t *frame_buffer;  /// Pointer to < Interwoven image data for examples;
+volatile uint32_t *frame_buffer1; ///< Interwoven image data for examples;
+volatile uint32_t *frame_buffer2; ///< Interwoven image data for examples;
+volatile uint32_t *dma_buffer;    ///< Interwoven image data for examples;
+static volatile bool swap_pending = false;
 
 static void configure_dma_channels();
 static void configure_pio(bool);
 static void setup_dma_transfers();
 static void setup_dma_irq();
 
-// Dummy pixel data emitted at the end of each row to ensure the last genuine pixels of a row are displayed
-static uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+// Dummy pixel data emitted at the end of each row to ensure the last genuine pixels of a row are displayed - keep volatile!
+static volatile uint32_t dummy_pixel_data[8] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 // Control data for the output enable signal
-static uint32_t oen_finished_data = 0;
+static volatile uint32_t oen_finished_data = 0;
 
 // Width and height of the HUB75 LED matrix
 static uint width;
@@ -105,11 +150,9 @@ static uint32_t row_address = 0;
 static uint32_t bit_plane = 0;
 static uint32_t row_in_bit_plane = 0;
 
-// Accumulator precision has to fit the lut precision.
-#define ACC_BITS 12
-
 // Derived constants
-static const int ACC_SHIFT = (ACC_BITS - 10); // number of low bits preserved in accumulator
+static constexpr int ACC_SHIFT = (ACC_BITS - BIT_DEPTH);    // number of low bits preserved in accumulator
+static constexpr uint16_t CLAMP_MAX = (1u << ACC_BITS) - 1; // 4095 for 10-bit, 1023 for 8-bit
 
 // Per-channel accumulators (allocated at runtime)
 static std::vector<uint16_t> acc_r, acc_g, acc_b;
@@ -124,7 +167,7 @@ static volatile uint32_t brightness_fp = (1u << BRIGHTNESS_FP_SHIFT); // default
 // Precomputed scaled basis per bit plane to avoid calculating in ISR
 static volatile uint32_t scaled_basis[BIT_DEPTH];
 
-// Basis factor (coarse brightness); keep as before
+// Basis factor (coarse brightness)
 static volatile uint32_t basis_factor = 6u;
 
 inline __attribute__((always_inline)) uint32_t set_row_in_bit_plane(uint32_t row_address, uint32_t bit_plane)
@@ -200,7 +243,7 @@ void setIntensity(float intensity)
  * This must be called after width and height are set and after the frame_buffer allocation.
  * Allocates three arrays of width*height uint32 accumulators (R, G, B) and zero-initializes them.
  */
-void init_accumulators(std::size_t pixel_count)
+static void init_accumulators(std::size_t pixel_count)
 {
     acc_r.assign(pixel_count, 0);
     acc_g.assign(pixel_count, 0);
@@ -229,9 +272,19 @@ static void oen_finished_handler()
         if (++bit_plane >= BIT_DEPTH)
         {
             bit_plane = 0;
+
+            if (swap_pending)
+            {
+                dma_buffer = (frame_buffer == frame_buffer1) ? frame_buffer2 : frame_buffer1;
+                swap_pending = false;
+            }
         }
         // Patch the PIO program to make it shift to the next bit plane
+#if BIT_DEPTH == 8
         hub75_data_rgb888_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#else
+        hub75_data_rgb101010_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#endif
     }
 #elif defined(HUB75_P3_1415_16S_64X64_S31)
     // plane wise BCM (Binary Coded Modulation)
@@ -241,20 +294,40 @@ static void oen_finished_handler()
         if (++bit_plane >= BIT_DEPTH)
         {
             bit_plane = 0;
+
+            if (swap_pending)
+            {
+                dma_buffer = (frame_buffer == frame_buffer1) ? frame_buffer2 : frame_buffer1;
+                swap_pending = false;
+            }
         }
         // Patch the PIO program to make it shift to the next bit plane
+#if BIT_DEPTH == 8
         hub75_data_rgb888_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#else
+        hub75_data_rgb101010_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#endif
     }
 #elif defined(HUB75_P10_3535_16X32_4S)
     // line wise BCM (Binary Coded Modulation)
     // calls hub75_data_rgb888_set_shift more often than plane wise BCM
+#if BIT_DEPTH == 8
     hub75_data_rgb888_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#else
+    hub75_data_rgb101010_set_shift(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, bit_plane);
+#endif
     if (++bit_plane >= BIT_DEPTH)
     {
         bit_plane = 0;
         if (++row_address >= (height >> 2))
         {
             row_address = 0;
+
+            if (swap_pending)
+            {
+                dma_buffer = (frame_buffer == frame_buffer1) ? frame_buffer2 : frame_buffer1;
+                swap_pending = false;
+            }
         }
     };
 #endif
@@ -265,11 +338,12 @@ static void oen_finished_handler()
     dma_channel_set_read_addr(oen_chan, &row_in_bit_plane, false);
 
     // Restart DMA channels for the next row's data transfer
-    dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
+    dma_channel_set_write_addr(oen_finished_chan, (volatile void *)&oen_finished_data, true);
+
 #if defined(HUB75_MULTIPLEX_2_ROWS)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
+    dma_channel_set_read_addr(pixel_chan, &dma_buffer[row_address * (width << 1)], true);
 #elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
+    dma_channel_set_read_addr(pixel_chan, &dma_buffer[row_address * (width << 2)], true);
 #endif
 }
 
@@ -288,7 +362,8 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
     width = w;
     height = h;
 
-    frame_buffer = std::make_unique<uint32_t[]>(width * height); // Allocate memory for frame buffer and zero-initialize
+    frame_buffer1 = new uint32_t[width * height](); // Allocate memory for frame buffer and zero-initialize
+    frame_buffer2 = new uint32_t[width * height](); // Allocate memory for frame buffer and zero-initialize
 
 #if defined(HUB75_MULTIPLEX_2_ROWS)
     offset = width * (height >> 1);
@@ -317,27 +392,6 @@ void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inve
 }
 
 /**
- * @brief Secondary core entry point - creates and starts driver for HUB75 rgb matrix.
- */
-void core1_entry()
-{
-    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
-
-    dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
-#if defined(HUB75_MULTIPLEX_2_ROWS)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 1)], true);
-#elif defined(HUB75_P10_3535_16X32_4S) || defined(HUB75_P3_1415_16S_64X64_S31)
-    dma_channel_set_read_addr(pixel_chan, &frame_buffer[row_address * (width << 2)], true);
-#endif
-
-    // KEEP CORE 1 ALIVE — without this, Core 1's NVIC is torn down and DMA_IRQ_1 stops firing
-    while (true)
-    {
-        tight_loop_contents();
-    }
-}
-
-/**
  * @brief Starts the DMA transfers for the HUB75 display driver.
  *
  * This function initializes the DMA transfers by setting up the write address
@@ -346,8 +400,14 @@ void core1_entry()
  */
 void start_hub75_driver()
 {
-    multicore_reset_core1();             // Reset core 1
-    multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
+    frame_buffer = frame_buffer1;
+    dma_buffer = frame_buffer1;
+    swap_pending = false;
+
+    row_address = 0;
+    // Start DMA channels
+    dma_channel_set_write_addr(oen_finished_chan, &oen_finished_data, true);
+    dma_channel_set_read_addr(pixel_chan, dma_buffer, true);
 }
 
 /**
@@ -362,13 +422,21 @@ static void configure_pio(bool inverted_stb)
     // On RP2350B, GPIO 30-47 are only accessible via PIO2
     // Force both state machines onto PIO2
     if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+#if BIT_DEPTH == 8
             &hub75_data_rgb888_program,
+#else
+            &hub75_data_rgb101010_program,
+#endif
             &pio_config.data_pio,
             &pio_config.sm_data,
             &pio_config.data_prog_offs,
             DATA_BASE_PIN, DATA_N_PINS + 1, true)) // +1 for CLK
     {
+#if BIT_DEPTH == 8
         panic("Failed to claim PIO SM for hub75_data_rgb888_program\n");
+#else
+        panic("Failed to claim PIO SM for hub75_data_rgb101010_program\n");
+#endif
     }
 
     if (inverted_stb)
@@ -396,8 +464,19 @@ static void configure_pio(bool inverted_stb)
         }
     }
 
+    // Implementation of Pimoronis anti ghosting solution: https://github.com/pimoroni/pimoroni-pico/commit/9e7c2640d426f7b97ca2d5e9161d3f0a00f21abf
+    uint wait_cycles = clock_get_hz(clk_sys) / 4000000;
+
+#if BIT_DEPTH == 8
     hub75_data_rgb888_program_init(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, DATA_BASE_PIN, CLK_PIN);
-    hub75_row_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN);
+#else
+    hub75_data_rgb101010_program_init(pio_config.data_pio, pio_config.sm_data, pio_config.data_prog_offs, DATA_BASE_PIN, CLK_PIN);
+#endif
+
+    if (inverted_stb)
+        hub75_row_inverted_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN, wait_cycles);
+    else
+        hub75_row_program_init(pio_config.row_pio, pio_config.sm_row, pio_config.row_prog_offs, ROWSEL_BASE_PIN, ROWSEL_N_PINS, STROBE_PIN, wait_cycles);
 }
 
 /**
@@ -405,7 +484,6 @@ static void configure_pio(bool inverted_stb)
  *
  * This function assigns DMA channels to handle pixel data transfer,
  * dummy pixel data, output enable signal, and output enable completion.
- * If a DMA channel cannot be claimed, the function prints an error message and exits.
  */
 static void configure_dma_channels()
 {
@@ -536,12 +614,12 @@ uint32_t temporal_dithering(size_t j, uint8_t r, uint8_t g, uint8_t b)
     uint16_t new_b = b16 + acc_b[j];
 
     // --- 3. Clamp to 16-bit maximum ---
-    if (new_r > 4095)
-        new_r = 4095;
-    if (new_g > 4095)
-        new_g = 4095;
-    if (new_b > 4095)
-        new_b = 4095;
+    if (new_r > CLAMP_MAX)
+        new_r = CLAMP_MAX;
+    if (new_g > CLAMP_MAX)
+        new_g = CLAMP_MAX;
+    if (new_b > CLAMP_MAX)
+        new_b = CLAMP_MAX;
 
     // --- 4. Quantize to 10-bit output and compute fractional error ---
     // Scale 16-bit → 10-bit (divide by 64)
@@ -555,7 +633,7 @@ uint32_t temporal_dithering(size_t j, uint8_t r, uint8_t g, uint8_t b)
     acc_b[j] = new_b & 0x3;
 
     // --- 5. Recombine into packed 0xRRGGBB10-bit-style integer ---
-    return (out_r << 20) | (out_g << 10) | out_b;
+    return (out_r << (2 * BIT_DEPTH)) | (out_g << BIT_DEPTH) | out_b;
 }
 #else
 /**
@@ -569,7 +647,7 @@ uint32_t temporal_dithering(size_t j, uint8_t r, uint8_t g, uint8_t b)
 inline __attribute__((always_inline)) uint32_t no_dithering(uint8_t r, uint8_t g, uint8_t b)
 {
     // LUT maps 8-bit → 10-bit, then pack into 32-bit RGB word
-    return (lut[r] << 20) | (lut[g] << 10) | lut[b];
+    return lut[r] << (2 * BIT_DEPTH) | lut[g] << BIT_DEPTH | lut[b];
 }
 #endif
 
@@ -584,9 +662,6 @@ inline __attribute__((always_inline)) uint32_t no_dithering(uint8_t r, uint8_t g
  */
 __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
 {
-    // Ramping up color resolution from 8 to 10 bits via CIE luminance respectively gamma table look-up
-    // Interweave pixels as required by Hub75 LED panel matrix
-
 #ifdef HUB75_MULTIPLEX_2_ROWS
     constexpr uint total_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT;
     const uint rgb_offset = offset * 3;
@@ -672,6 +747,10 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
         }
     }
 #endif
+    uint32_t irq = save_and_disable_interrupts();
+    swap_pending = true;
+    frame_buffer = (frame_buffer == frame_buffer1) ? frame_buffer2 : frame_buffer1;
+    restore_interrupts(irq);
 }
 
 /**

@@ -83,6 +83,15 @@
 #define SM_CLOCKDIV_FACTOR 1.0f
 #endif
 
+// Used in hub75_demo.cpp 
+// Start hub75 driver on core1 if HUB75_MULTICORE is set to true
+// Start hub75 driver on core0 if HUB75_MULTICORE is set to false
+// The hub75 driver has not much CPU load. Most of it task are handled by DMA and PIO.
+// Only the interupt handler oen_finished_handler is CPU bound.
+#ifndef HUB75_MULTICORE
+#define HUB75_MULTICORE true
+#endif
+
 // --- modifications below this line might imply changes in source code ---
 
 #if TEMPORAL_DITHERING != false
@@ -91,17 +100,21 @@
 #define LUT_MAPPING_RGB(IDX, R, G, B) no_dithering(R, G, B)
 #endif
 
-#ifndef BIT_DEPTH
-#define BIT_DEPTH 10 ///< Number of bit planes
+// At the moment only used for HUB75_P10_3535_16X32_4S panels
+#define SCAN_GROUPS (1 << ROWSEL_N_PINS)
+
+#if !defined(BIT_DEPTH)
+#define BIT_DEPTH 10  // default
+#endif
+
+#if BIT_DEPTH != 8 && BIT_DEPTH != 10
+#error "BIT_DEPTH must be 8 or 10"
 #endif
 
 // Accumulator precision has to fit the lut precision.
 #ifndef ACC_BITS
-#define ACC_BITS 12
+#define ACC_BITS (BIT_DEPTH + 2)
 #endif
-
-// At the moment only used for HUB75_P10_3535_16X32_4S panels
-#define SCAN_GROUPS (1 << ROWSEL_N_PINS)
 
 #define EXIT_FAILURE 1
 
