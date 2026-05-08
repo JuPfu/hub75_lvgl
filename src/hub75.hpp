@@ -2,13 +2,55 @@
 
 // See README.md file chapter "How to Configure" for some hints how to adapt the configuration to your panel
 
-// Set MATRIX_PANEL_WIDTH and MATRIX_PANEL_HEIGHT to the width and height of your matrix panel!
+// Set MATRIX_PANEL_WIDTH and MATRIX_PANEL_HEIGHT to the width and height of a SINGLE matrix panel.
+// For chained panels, use CHAIN_ROWS and CHAIN_COLS to describe the arrangement.
 #ifndef MATRIX_PANEL_WIDTH
 #define MATRIX_PANEL_WIDTH 64
 #endif
 #ifndef MATRIX_PANEL_HEIGHT
 #define MATRIX_PANEL_HEIGHT 64
 #endif
+
+// --- Panel chaining ---
+//
+// CHAIN_ROWS: number of panels chained left-to-right in a single chain row.
+// CHAIN_COLS:   number of chain rows stacked vertically (U-type / serpentine).
+//
+// Currently only serpentine (U-turn) chained topologies are supported.
+// Arbitrary panel rotations or non-serpentine cable layouts are not supported.
+//
+//   Chain row 0: left → right
+//   Chain row 1: right → left  (U-turn)
+//   Chain row 2: left → right
+//   ...
+//
+// The signal input connector is always on the LEFT panel of chain row 0.
+//
+// Examples:
+//   Single panel:         CHAIN_ROWS=1, CHAIN_COLS=1  (or omit both)
+//   2 panels side-by-side: CHAIN_ROWS=2, CHAIN_COLS=1
+//   2×4 serpentine array:  CHAIN_ROWS=2, CHAIN_COLS=4
+//
+// When only CHAIN_ROWS > 1 and CHAIN_COLS=1, there is no serpentine
+// reversal — data flows straight through all panels left-to-right.
+//
+// MATRIX_PANEL_WIDTH and MATRIX_PANEL_HEIGHT always describe ONE physical panel.
+// The total virtual display dimensions are derived automatically (see DISPLAY_WIDTH / DISPLAY_HEIGHT below).
+//
+
+#ifndef CHAIN_MODE
+#define CHAIN_MODE CHAIN_MODE_SERPENTINE
+#endif
+
+#ifndef CHAIN_ROWS
+#define CHAIN_ROWS 1
+#endif
+#ifndef CHAIN_COLS
+#define CHAIN_COLS 1
+#endif
+
+static_assert(CHAIN_ROWS >= 1, "CHAIN_ROWS must be >= 1");
+static_assert(CHAIN_COLS >= 1, "CHAIN_COLS must be >= 1");
 
 // Wiring of the HUB75 matrix
 #ifndef DATA_BASE_PIN // start gpio pin of consecutive color pins e.g., r1, g1, b1, r2, g2, b2
@@ -45,14 +87,14 @@
 // Example:
 // The P3-64*64-32S-V2.0 is a standard Hub75 panel with two rows multiplexed, so define HUB75_MULTIPLEX_2_ROWS should be correct
 //
-// #define HUB75_MULTIPLEX_2_ROWS      // default - two rows lit simultaneously
+// #define HUB75                       // default - two rows lit simultaneously
 // #define HUB75_P10_3535_16X32_4S     // four rows lit simultaneously (can be defined via CMake)
 // #define HUB75_P3_1415_16S_64X64_S31 // four rows lit simultaneously
 //
-// Default to HUB75_MULTIPLEX_2_ROWS if no multiplexing mode is defined
+// Default to HUB75 if no multiplexing mode is defined
 // Only define default if none of the mapping modes are already defined
-#if !defined(HUB75_MULTIPLEX_2_ROWS) && !defined(HUB75_P10_3535_16X32_4S) && !defined(HUB75_P3_1415_16S_64X64_S31)
-#define HUB75_MULTIPLEX_2_ROWS // two rows lit simultaneously
+#if !defined(HUB75) && !defined(HUB75_P10_3535_16X32_4S) && !defined(HUB75_P3_1415_16S_64X64_S31)
+#define HUB75 // two or four rows lit simultaneously
 #endif
 
 // If panel type FM6126A or panel type RUL6024 is selected, an initialisation sequence is sent to the panel
@@ -70,11 +112,6 @@
 #define INVERTED_STB false
 #endif
 
-// TEMPORAL_DITHERING is experimental - development still in progress
-#ifndef TEMPORAL_DITHERING
-#define TEMPORAL_DITHERING false
-#endif
-
 #ifndef SM_CLOCKDIV_FACTOR
 // To prevent flicker or ghosting it might be worth a try to reduce state machine speed.
 // For panels with height less or equal to 16 rows try a factor of 8.0f
@@ -83,7 +120,107 @@
 #define SM_CLOCKDIV_FACTOR 1.0f
 #endif
 
-// Used in hub75_demo.cpp 
+#ifndef SEPARATE_CIE_CHANNELS
+#define SEPARATE_CIE_CHANNELS false
+#endif
+
+#if SEPARATE_CIE_CHANNELS == false
+#define CIE_RED CIE
+#define CIE_GREEN CIE
+#define CIE_BLUE CIE
+#endif
+
+// ---------------------------------------------------------------------------
+// Color Correction Matrix (CCM) — Cross-channel mixing
+//
+// Applied AFTER the CIE LUT lookup, on already CAP-scaled 10-bit values.
+// The diagonal (RED_CAP, GREEN_CAP, BLUE_CAP) is already baked into the LUTs.
+// These cross-terms correct for LED spectral bleed between channels.
+//
+// Each coefficient is expressed as a right-shift amount (integer, no floats):
+//   shift=0  → add 100% of source channel (too much, don't use)
+//   shift=5  → add  3.1% of source channel
+//   shift=6  → add  1.6% of source channel
+//   shift=7  → add  0.8% of source channel
+//   shift=8  → add  0.4% of source channel
+//   shift=9  → add  0.2% of source channel  (barely perceptible)
+//   shift=31 → add  0%   (disabled / identity, use this to turn off a term)
+//
+// Neutral (identity) setting: all cross-shifts = 31 (adds nothing).
+// Typical starting point for warm LED panels:
+//   CCM_RG_SHIFT 6   — add ~1.6% of Green into Red   (warm tint correction)
+//   CCM_GB_SHIFT 7   — add ~0.8% of Blue into Green  (cool tint correction)
+//   CCM_BR_SHIFT 31  — Blue channel unchanged
+//
+// To disable CCM entirely: set all three shifts to 31.
+// ---------------------------------------------------------------------------
+
+#ifndef CCM_RG_SHIFT
+#define CCM_RG_SHIFT 31 // bits of Green added into Red output   (31 = off)
+#endif
+#ifndef CCM_RB_SHIFT
+#define CCM_RB_SHIFT 31 // bits of Blue  added into Red output   (31 = off)
+#endif
+#ifndef CCM_GR_SHIFT
+#define CCM_GR_SHIFT 31 // bits of Red   added into Green output (31 = off)
+#endif
+#ifndef CCM_GB_SHIFT
+#define CCM_GB_SHIFT 31 // bits of Blue  added into Green output (31 = off)
+#endif
+#ifndef CCM_BR_SHIFT
+#define CCM_BR_SHIFT 31 // bits of Red   added into Blue output  (31 = off)
+#endif
+#ifndef CCM_BG_SHIFT
+#define CCM_BG_SHIFT 31 // bits of Green added into Blue output  (31 = off)
+#endif
+
+// Maximum output value for clamping (depends on BITPLANES)
+#if BITPLANES == 10
+#define CCM_MAX_VAL 1023u
+#elif BITPLANES == 8
+#define CCM_MAX_VAL 255u
+#endif
+
+// CCM_CLAMP: saturate at CCM_MAX_VAL without branching
+// Uses the fact that if (a + b) overflows CCM_MAX_VAL, we cap to CCM_MAX_VAL.
+// Implemented as: min(a + b, CCM_MAX_VAL) via conditional expression.
+// On RP2040/RP2350 the compiler generates a single USAT or CMP+MOV — no branch.
+#define CCM_CLAMP(val) ((val) > CCM_MAX_VAL ? CCM_MAX_VAL : (val))
+
+// CCM_APPLY: full cross-channel mixing on already-LUT-mapped 10-bit values.
+// rv, gv, bv must be uint32_t locals holding the LUT output (0..CCM_MAX_VAL).
+// Result is written back into rv, gv, bv.
+//
+// The cross-terms are purely additive (superposition model):
+//   r_out = r + (g >> RG_SHIFT) + (b >> RB_SHIFT)
+//   g_out = g + (r >> GR_SHIFT) + (b >> GB_SHIFT)
+//   b_out = b + (r >> BR_SHIFT) + (g >> BG_SHIFT)
+//
+// Addition order: first combine all cross-terms per channel, then clamp once.
+// This avoids multiple clamp calls and is branch-prediction friendly.
+#define CCM_APPLY(rv, gv, bv)                                                 \
+    do                                                                        \
+    {                                                                         \
+        uint32_t _r = (rv) + ((gv) >> CCM_RG_SHIFT) + ((bv) >> CCM_RB_SHIFT); \
+        uint32_t _g = (gv) + ((rv) >> CCM_GR_SHIFT) + ((bv) >> CCM_GB_SHIFT); \
+        uint32_t _b = (bv) + ((rv) >> CCM_BR_SHIFT) + ((gv) >> CCM_BG_SHIFT); \
+        (rv) = CCM_CLAMP(_r);                                                 \
+        (gv) = CCM_CLAMP(_g);                                                 \
+        (bv) = CCM_CLAMP(_b);                                                 \
+    } while (0)
+
+#ifndef BITPLANES
+#define BITPLANES 10 // default
+#endif
+
+// Balanced Light Output
+// High-weight bit-planes are split into multiple smaller slices within the BCM sequence.
+// This increases the effective refresh rate and cuts down flicker at the cost of some more memory consumption.
+#ifndef BALANCED_LIGHT_OUTPUT
+#define BALANCED_LIGHT_OUTPUT true
+#endif
+
+// Used in hub75_demo.cpp
 // Start hub75 driver on core1 if HUB75_MULTICORE is set to true
 // Start hub75 driver on core0 if HUB75_MULTICORE is set to false
 // The hub75 driver has not much CPU load. Most of it task are handled by DMA and PIO.
@@ -92,37 +229,98 @@
 #define HUB75_MULTICORE true
 #endif
 
+#ifndef BASE_LATCH_NS
+#define BASE_LATCH_NS 80
+#endif
+
+#ifndef BASE_ADDR_NS
+#define BASE_ADDR_NS 120
+#endif
+
+#ifndef BASE_OE_NS
+#define BASE_OE_NS 40
+#endif
+
+// Frame rate
+// Use only for testing or debugging
+#ifndef FRAME_RATE
+#define FRAME_RATE false
+#endif
+
 // --- modifications below this line might imply changes in source code ---
 
-#if TEMPORAL_DITHERING != false
-#define LUT_MAPPING_RGB(IDX, R, G, B) temporal_dithering(IDX, R, G, B)
-#else
-#define LUT_MAPPING_RGB(IDX, R, G, B) no_dithering(R, G, B)
-#endif
+constexpr uint32_t matrix_panel_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT;
+
+// Total virtual display dimensions (derived — do not set manually)
+constexpr uint32_t DISPLAY_WIDTH = MATRIX_PANEL_WIDTH * CHAIN_COLS;
+constexpr uint32_t DISPLAY_HEIGHT = MATRIX_PANEL_HEIGHT * CHAIN_ROWS;
+
+constexpr size_t TOTAL_PIXELS = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT * CHAIN_ROWS * CHAIN_COLS;
+
+#define LUT_MAPPING(COLOUR) pack_lut_rgb(COLOUR)
+#define LUT_MAPPING_RGB(R, G, B) pack_lut_rgb_(R, G, B)
 
 // At the moment only used for HUB75_P10_3535_16X32_4S panels
 #define SCAN_GROUPS (1 << ROWSEL_N_PINS)
 
-#if !defined(BIT_DEPTH)
-#define BIT_DEPTH 10  // default
-#endif
-
-#if BIT_DEPTH != 8 && BIT_DEPTH != 10
-#error "BIT_DEPTH must be 8 or 10"
-#endif
-
-// Accumulator precision has to fit the lut precision.
-#ifndef ACC_BITS
-#define ACC_BITS (BIT_DEPTH + 2)
+#if BITPLANES != 8 && BITPLANES != 10
+#error "BITPLANES must be 8 or 10"
 #endif
 
 #define EXIT_FAILURE 1
 
+// Macro to return a value clamped between a minimum and maximum
+#ifndef CLAMP
+#define CLAMP(a, mn, mx) ((a)<(mx)?((a)>(mn)?(a):(mn)):(mx))
+#endif
+namespace PanelConfig
+{
+    constexpr uint32_t WIDTH = MATRIX_PANEL_WIDTH;
+    constexpr uint32_t HEIGHT = MATRIX_PANEL_HEIGHT;
+
+    // The number of address lines (A, B, C...) defines the multiplexing depth
+    constexpr uint32_t ADDR_PINS = ROWSEL_N_PINS;
+    constexpr uint32_t ADDR_MASK = (1 << ADDR_PINS) - 1;
+
+    // How many unique binary addresses are sent to the panel
+    // This is the value your DMA loop for 'row_cmd' should iterate over.
+    constexpr uint32_t SCAN_DEPTH = (1u << ADDR_PINS); // 16 for 1/16 scan
+
+    // How many physical rows are updated per clock pulse (parallelism)
+    // For standard panels, this is usually 2.
+    constexpr uint32_t ROWS_IN_PARALLEL = HEIGHT / SCAN_DEPTH;
+
+    // HUB75_P3_1415_16S_64X64_S31
+    // LINE_OFFSET: line offset depending on ROWS_IN_PARALLEL (scan-mode)
+    // Two paired lines handled together, therefore term ">> 1u"
+    constexpr uint32_t LINE_OFFSET = ((MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS) >> 1u) * ROWS_IN_PARALLEL;
+
+    // BITPLANE_STREAM_LENGTH: number of bytes streamed for each row (including paired rows) in a bitplane
+    // Used in hub75_bitplane_stream as value of Y-register
+    // Each OUT instruction writes color information for 2 pixels r0g0b0 and r1b1g1, therefore term  ">> 1u"
+    constexpr uint32_t BITPLANE_STREAM_LENGTH = ((MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS) >> 1u) * ROWS_IN_PARALLEL;
+
+    constexpr uint32_t stride_row = MATRIX_PANEL_WIDTH * CHAIN_ROWS;
+    constexpr uint32_t stride_to_paired_row = MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS * SCAN_DEPTH;
+}
+
+enum Hub75ChainMode
+{
+    CHAIN_MODE_SERPENTINE,
+    CHAIN_MODE_RASTER
+};
+
 void setBasisBrightness(uint8_t factor);
 void setIntensity(float intensity);
+void setIntensity(float intensity, bool linear_brightness_control);
 
 void create_hub75_driver(uint w, uint h, uint panel_type, bool stb_inverted);
 void start_hub75_driver();
 void update_bgr(const uint8_t *src);
 void update(const uint8_t *src);
 void update_area_bgr(const uint8_t *src, const int32_t x1, const int32_t y1, const int32_t x2, const int32_t y2);
+
+#if defined(HUB75_MULTIPLEX_2_ROWS)
+static_assert(MATRIX_PANEL_HEIGHT == 2 * PanelConfig::SCAN_DEPTH, "HUB75_MULTIPLEX_2_ROWS requires two-row multiplexing");
+#endif
+static_assert(DISPLAY_WIDTH % 2 == 0, "HUB75 bitstream expects even pixel pairs");

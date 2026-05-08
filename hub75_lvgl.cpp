@@ -167,7 +167,7 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
+    create_hub75_driver(DISPLAY_WIDTH, DISPLAY_HEIGHT, PANEL_TYPE, INVERTED_STB);
     start_hub75_driver();
 
     // KEEP CORE 1 ALIVE — without this, Core 1's NVIC is torn down and DMA_IRQ_1 stops firing
@@ -199,7 +199,7 @@ void initialize()
     multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
 #else
     // Run hub75 on core0 - the Hub75 driver is doing its job here
-    create_hub75_driver(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT, PANEL_TYPE, INVERTED_STB);
+    create_hub75_driver(DISPLAY_WIDTH, DISPLAY_HEIGHT, PANEL_TYPE, INVERTED_STB);
     start_hub75_driver();
 #endif
 }
@@ -293,14 +293,14 @@ int main()
     lv_init();
     lv_tick_set_cb(get_milliseconds_since_boot);
 
-    display1 = lv_display_create(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
+    display1 = lv_display_create(DISPLAY_WIDTH, DISPLAY_HEIGHT);
     if (display1 == NULL)
     {
         printf("lv_display_create failed\n");
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), MATRIX_PANEL_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), DISPLAY_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
@@ -308,10 +308,10 @@ int main()
     const float fps = 120.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
-    BouncingBalls bouncingBalls(15, MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
-    FireEffect fireEffect(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
-    ImageAnimation imageAnimation(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
-    ColourCheck colourCheck(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
+    BouncingBalls bouncingBalls(15, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    FireEffect fireEffect(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    ImageAnimation imageAnimation(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    ColourCheck colourCheck(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
     struct repeating_timer timer;
     add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
