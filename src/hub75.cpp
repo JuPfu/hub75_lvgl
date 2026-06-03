@@ -21,13 +21,42 @@
 
 #include "cie.hpp"
 
+#if BITPLANES == 10
+#if BALANCED_LIGHT_OUTPUT == true
+// Split sequence for 10 bitplanes
+// Split BP 9 into 4 parts, BP 8 into 2 parts.
+static const uint8_t BCM_SEQUENCE[] = {
+    9, 0, 8, 1, 9, 2, 7, 3, 9, 4, 8, 5, 9, 6 // 14 steps instead of 10
+};
+#else
+static const uint8_t BCM_SEQUENCE[] = {
+    0, 9, 2, 7, 4, 5, 1, 8, 3, 6 // 10 steps
+};
+#endif
+#elif BITPLANES == 8
+#if BALANCED_LIGHT_OUTPUT == true
+// Split sequence for 8 bitplanes
+// Split BP 7 into 3 parts, BP 6 into 2 parts
+static const uint8_t BCM_SEQUENCE[] = {
+    7, 0, 6, 1, 7, 2, 5, 3, 7, 4, 6 // 11 steps instead of 8
+};
+#else
+static const uint8_t BCM_SEQUENCE[] = {
+    0, 7, 2, 5, 1, 6, 3, 4 // 8 steps
+};
+#endif
+#endif
+
+constexpr uint8_t bcm_sequence_length = sizeof(BCM_SEQUENCE) / sizeof(uint8_t);
+
 // Frame buffer for the HUB75 matrix - memory area where pixel data is stored
-alignas(32) uint8_t *frame_buffer; ///< Back buffer — written by bitplane builder (read_chan_handler)
-uint8_t *frame_buffer1;            ///< Physical buffer A
-uint8_t *frame_buffer2;            ///< Physical buffer B
-uint8_t *dma_buffer;               ///< Front buffer — read by pixel_chan DMA → panel streamer
+static uint8_t *frame_buffer; ///< Back buffer — written by bitplane builder (read_chan_handler)
+static uint8_t *dma_buffer;   ///< Front buffer — read by pixel_chan DMA → panel streamer
 
 static uint32_t *rgb_buffer;
+
+static uint8_t frame_buffer1[(TOTAL_PIXELS >> 1) * bcm_sequence_length] __attribute__((aligned(4)));
+static uint8_t frame_buffer2[(TOTAL_PIXELS >> 1) * bcm_sequence_length] __attribute__((aligned(4)));
 
 /**
  * @struct row_cmd_t
@@ -64,40 +93,15 @@ struct row_cmd_t
 constexpr uint32_t row_cmd_struct_members = sizeof(row_cmd_t) / sizeof(uint32_t);
 
 row_cmd_t *row_cmd_buffer;
-row_cmd_t *row_cmd_buffer1;
-row_cmd_t *row_cmd_buffer2;
 row_cmd_t *dma_row_cmd_buffer;
+
+static row_cmd_t row_cmd_buffer1[PanelConfig::SCAN_DEPTH * bcm_sequence_length] __attribute__((aligned(4)));
+static row_cmd_t row_cmd_buffer2[PanelConfig::SCAN_DEPTH * bcm_sequence_length] __attribute__((aligned(4)));
 
 static volatile bool swap_row_cmd_buffer_pending = false;
 static volatile bool swap_frame_buffer_pending = false;
 
-#if BITPLANES == 10
-#if BALANCED_LIGHT_OUTPUT == true
-// Split sequence for 10 bitplanes
-// Split BP 9 into 4 parts, BP 8 into 2 parts.
-static const uint8_t BCM_SEQUENCE[] = {
-    9, 0, 8, 1, 9, 2, 7, 3, 9, 4, 8, 5, 9, 6 // 14 steps instead of 10
-};
-#else
-static const uint8_t BCM_SEQUENCE[] = {
-    0, 9, 2, 7, 4, 5, 1, 8, 3, 6 // 10 steps
-};
-#endif
-#elif BITPLANES == 8
-#if BALANCED_LIGHT_OUTPUT == true
-// Split sequence for 8 bitplanes
-// Split BP 7 into 3 parts, BP 6 into 2 parts
-static const uint8_t BCM_SEQUENCE[] = {
-    7, 0, 6, 1, 7, 2, 5, 3, 7, 4, 6 // 11 steps instead of 8
-};
-#else
-static const uint8_t BCM_SEQUENCE[] = {
-    0, 7, 2, 5, 1, 6, 3, 4 // 8 steps
-};
-#endif
-#endif
-
-constexpr uint8_t bcm_sequence_length = sizeof(BCM_SEQUENCE) / sizeof(uint8_t);
+constexpr float SM_CLOCKDIV = (SM_CLOCKDIV_FACTOR < 1.0f) ? 1.0f : SM_CLOCKDIV_FACTOR;
 
 static void configure_pio(bool);
 static void setup_dma_transfers();
@@ -349,9 +353,9 @@ void hub75_build_row_cmd_buffer(uint32_t brightness_fp)
         uint32_t total_lit, total_dark;
         compute_bcm_cycles(bp, brightness_fp, total_lit, total_dark);
 
-        // Divide the time by the number of times this BP appears in the sequence
-        uint32_t lit_cycles = split_factor == 1 ? total_lit : ((total_lit + split_factor / 2) / split_factor);
-        uint32_t dark_cycles = split_factor == 1 ? total_dark : ((total_dark + split_factor / 2) / split_factor);
+        uint32_t base_per_slice = (basis_factor << bp) / split_factor;
+        uint32_t lit_cycles = (base_per_slice * brightness_fp) >> BRIGHTNESS_FP_SHIFT;
+        uint32_t dark_cycles = base_per_slice - lit_cycles;
 
         for (uint32_t row = 0; row < PanelConfig::SCAN_DEPTH; ++row)
         {
@@ -496,9 +500,9 @@ void ctrl_chan_handler()
             // dma_row_cmd_buffer → active front buffer (DMA reads from it).
             // row_cmd_buffer → back buffer (modified by setBasisBrightness).
             // Swap: the new back buffer becomes the new front buffer.
-            dma_row_cmd_buffer = row_cmd_buffer;
-
-            row_cmd_buffer = (dma_row_cmd_buffer == row_cmd_buffer1) ? row_cmd_buffer2 : row_cmd_buffer1;
+            row_cmd_t *new_front = row_cmd_buffer;
+            row_cmd_buffer = (new_front == row_cmd_buffer1) ? row_cmd_buffer2 : row_cmd_buffer1;
+            dma_row_cmd_buffer = new_front;
 
             // Reconfigure row_ctrl_chan with a new dma_row_cmd_buffer pointer
             dma_channel_set_read_addr(row_ctrl_chan, &dma_row_cmd_buffer, false);
@@ -516,10 +520,9 @@ void ctrl_chan_handler()
             // dma_buffer  → active front buffer (DMA streams from it)
             // frame_buffer → back buffer (refilled by read_chan_handler)
             // Swap: the new back buffer becomes the new front buffer.
-            dma_buffer = frame_buffer;
-
-            frame_buffer = (dma_buffer == frame_buffer1) ? frame_buffer2 : frame_buffer1;
-
+            uint8_t *new_front = frame_buffer;
+            frame_buffer = (new_front == frame_buffer1) ? frame_buffer2 : frame_buffer1;
+            dma_buffer = new_front;
             // Reconfigure pixel_ctrl_chan with a new dma_buffer pointer
             dma_channel_set_read_addr(pixel_ctrl_chan, &dma_buffer, false);
 
@@ -657,21 +660,15 @@ void setup_bitplane_stream_irq()
  */
 void create_hub75_driver(uint w, uint h, uint panel_type = PANEL_TYPE, bool inverted_stb = INVERTED_STB)
 {
-    frame_buffer1 = new uint8_t[(TOTAL_PIXELS >> 1) * bcm_sequence_length];
-    frame_buffer2 = new uint8_t[(TOTAL_PIXELS >> 1) * bcm_sequence_length];
-
     dma_buffer = frame_buffer1;
     frame_buffer = frame_buffer2;
-
-    row_cmd_buffer1 = new row_cmd_t[PanelConfig::SCAN_DEPTH * bcm_sequence_length];
-    row_cmd_buffer2 = new row_cmd_t[PanelConfig::SCAN_DEPTH * bcm_sequence_length];
 
     dma_row_cmd_buffer = row_cmd_buffer1;
     row_cmd_buffer = row_cmd_buffer2;
 
     rgb_buffer = new uint32_t[TOTAL_PIXELS]();
 
-    hub75_timing_init(&hub75_timing_config, clock_get_hz(clk_sys), (SM_CLOCKDIV_FACTOR < 1.0f) ? 1.0f : SM_CLOCKDIV_FACTOR);
+    hub75_timing_init(&hub75_timing_config, clock_get_hz(clk_sys), SM_CLOCKDIV);
 
     if (panel_type == PANEL_FM6126A)
     {
@@ -878,10 +875,8 @@ static void setup_dma_transfers()
     // The pixel_ctrl_chan resets the start address of pixel_chan to dma_buffer.
     dma_channel_configure(pixel_ctrl_chan, &pixel_ctrl_chan_config, &dma_hw->ch[pixel_chan].read_addr, dma_buffer, dma_encode_transfer_count(1), false);
 
-    constexpr float clkdiv = (SM_CLOCKDIV_FACTOR < 1.0f) ? 1.0f : SM_CLOCKDIV_FACTOR;
-
-    pio_sm_set_clkdiv(pio_config.data_pio, pio_config.sm_data, clkdiv);
-    pio_sm_set_clkdiv(pio_config.row_pio, pio_config.sm_row, clkdiv);
+    pio_sm_set_clkdiv(pio_config.data_pio, pio_config.sm_data, SM_CLOCKDIV);
+    pio_sm_set_clkdiv(pio_config.row_pio, pio_config.sm_row, SM_CLOCKDIV);
 }
 
 /**
@@ -917,16 +912,6 @@ static void setup_dma_transfers()
  */
 
 // Helper: apply LUT and pack into 30-bit RGB (10 bits per channel)
-static inline uint32_t pack_lut_rgb(uint32_t colour)
-{
-    uint32_t rv = CIE_RED[(colour >> 16u) & 0xFFu];
-    uint32_t gv = CIE_GREEN[(colour >> 8u) & 0xFFu];
-    uint32_t bv = CIE_BLUE[colour & 0xFFu];
-    CCM_APPLY(rv, gv, bv);
-    return (bv << 20u) | (gv << 10u) | rv;
-}
-
-// Helper: apply LUT and pack into 30-bit RGB (10 bits per channel)
 static inline uint32_t pack_lut_rgb_(uint8_t r, uint8_t g, uint8_t b)
 {
     uint32_t rv = CIE_RED[r];
@@ -936,7 +921,6 @@ static inline uint32_t pack_lut_rgb_(uint8_t r, uint8_t g, uint8_t b)
     return (bv << 20u) | (gv << 10u) | rv;
 }
 
-#if defined(HUB75) || defined(HUB75_P3_1415_16S_64X64_S31)
 /**
  * @brief Calculate offset for current row in panel with coordinatres (v, h) in positive or negative (´reverse´) direction,
  *
@@ -945,33 +929,23 @@ static inline uint32_t pack_lut_rgb_(uint8_t r, uint8_t g, uint8_t b)
  * @param h horizontal panel position
  * @param reverse calculate offset for ´reverse´ direction
  */
-inline int32_t map_pixel(int row, int v, int h, bool reverse)
+inline int32_t map_panel_row(int row, int v, int h, bool reverse)
 {
-    const int32_t panel_stride = CHAIN_ROWS * matrix_panel_pixels;
-    // Odd serpentine panel row (180° rotated)
-    const int32_t direction = reverse ? -1 : 1;
-    const int32_t vertical_offset = reverse ? v + 1 : v;
+    // Reverse physical panel column order for serpentine odd chain rows
+    const int32_t phys_h = reverse ? (CHAIN_COLS - 1 - h) : h;
 
-    return vertical_offset * panel_stride + direction * (int32_t)(h * MATRIX_PANEL_WIDTH + row * PanelConfig::stride_row);
+    // Reverse over full panel height (not just SCAN_DEPTH) so that
+    // combined with a negative stride_to_paired_row step in the caller,
+    // both paired rows land at the correct mirrored source positions.
+    const int32_t local_row = reverse ? (MATRIX_PANEL_HEIGHT - 1 - row) : row;
+
+    // Top-left pixel of this panel in the row-major source framebuffer:
+    //   v panels down  → v * MATRIX_PANEL_HEIGHT full source rows
+    //   phys_h panels right → phys_h * MATRIX_PANEL_WIDTH columns
+    const int32_t panel_top_left = v * (int32_t)(MATRIX_PANEL_HEIGHT * DISPLAY_WIDTH) + phys_h * (int32_t)MATRIX_PANEL_WIDTH;
+
+    return panel_top_left + local_row * (int32_t)DISPLAY_WIDTH;
 }
-#elif defined(HUB75_P10_3535_16X32_4S)
-inline int32_t map_p10_pixel_pair(int j, int line)
-{
-    constexpr int COLUMN_PAIRS = MATRIX_PANEL_WIDTH >> 1;
-    constexpr int HALF_PAIRS = COLUMN_PAIRS >> 1;
-
-    constexpr int PAIR_HALF_BIT = HALF_PAIRS;
-    constexpr int PAIR_HALF_SHIFT = __builtin_ctz(HALF_PAIRS);
-
-    constexpr int ROW_STRIDE = MATRIX_PANEL_WIDTH;
-    constexpr int ROWS_PER_GROUP = MATRIX_PANEL_HEIGHT / SCAN_GROUPS;
-    constexpr int GROUP_ROW_OFFSET = ROWS_PER_GROUP * ROW_STRIDE;
-
-    return (!(j & PAIR_HALF_BIT))
-               ? j - (line << PAIR_HALF_SHIFT)
-               : GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT);
-}
-#endif
 
 /**
  * @brief Updates the frame buffer with pixel data from the source array.
@@ -981,19 +955,19 @@ inline int32_t map_p10_pixel_pair(int j, int line)
  *
  * @param src Graphics object to be updated - RGB888 format, 24-bits in uint32_t array
  */
-__attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
+__attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
 {
 #if defined(HUB75)
 #if CHAIN_COLS == 1 && CHAIN_ROWS == 1
     constexpr int32_t triple_stride_to_paired_row = 3 * PanelConfig::stride_to_paired_row;
 
     int32_t fb_index = 0;
-    for (int32_t j = 0; j < triple_stride_to_paired_row; j += 3)
+    for (int32_t i = 0; i < triple_stride_to_paired_row; i += 3)
     {
         for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
         {
             const int32_t offset = p * triple_stride_to_paired_row;
-            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[offset + j + 2], src[offset + j + 1], src[offset + j]);
+            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[offset + i + 2], src[offset + i + 1], src[offset + i]);
         }
     }
 #else
@@ -1021,41 +995,50 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     //
 
     size_t fb_index = 0;
+
     for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++)
     {
-        for (int v = 0; v < CHAIN_ROWS; v++) // v: panel row (vertical chain)
+        for (int v = 0; v < CHAIN_ROWS; v++)
         {
-            const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) ? (v & 1) : false;
+            const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) && (v & 1);
 
-            for (int h = 0; h < CHAIN_COLS; h++) // h: panel column (horizontal chain)
+            for (int h = 0; h < CHAIN_COLS; h++)
             {
                 // Input parameters
                 // row: current row, (v, h): panel coordinates, reverse: U-turn descriptor
                 // Output parameters
-                // row_offset: row offset
-                uint32_t row_offset = map_pixel(row, v, h, reverse);
+                // row_base: row offset
+                //
+                // map_panel_row():
+                //   - selects physical panel
+                //   - selects row inside panel
+                const int32_t row_base = map_panel_row(row, v, h, reverse);
 
                 if (reverse)
                 {
-                    // Odd serpentine panel row (180° rotated)
-                    for (int32_t j = 3; j <= MATRIX_PANEL_WIDTH * 3; j += 3)
+                    // True 180° rotation:
+                    //
+                    // reverse:
+                    //   - local scan row      (done in map_panel_row)
+                    //   - X traversal         (done here)
+                    //   - multiplex ordering  (done here)
+                    for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
                     {
                         for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
                         {
-                            int32_t offset = (row_offset - p * PanelConfig::stride_to_paired_row) * 3;
-                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[offset - j - 2], src[offset - j - 1], src[offset - j]);
+                            const int32_t base = (row_base - p * PanelConfig::stride_to_paired_row) * 3;
+                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
                         }
                     }
                 }
                 else
                 {
-                    // Even row
-                    for (int j = 0; j < MATRIX_PANEL_WIDTH * 3; j += 3)
+                    for (int i = 0; i < MATRIX_PANEL_WIDTH * 3; i += 3)
                     {
                         for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
                         {
-                            int32_t offset = (row_offset + p * PanelConfig::stride_to_paired_row) * 3;
-                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[offset + j + 2], src[offset + j + 1], src[offset + j]);
+                            const int32_t base = (row_base + p * PanelConfig::stride_to_paired_row) * 3;
+                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
                         }
                     }
                 }
@@ -1083,8 +1066,7 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
 
     for (int j = 0, fb_index = 0; j < total_pairs; ++j, fb_index += 2)
     {
-        int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3
-                                             : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
+        int32_t index = !(j & PAIR_HALF_BIT) ? (j - (line << PAIR_HALF_SHIFT)) * 3 : (GROUP_ROW_OFFSET + j - ((line + 1) << PAIR_HALF_SHIFT)) * 3;
 
         rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[index + 2], src[index + 1], src[index]);
         index += HALF_PANEL_OFFSET;
@@ -1097,52 +1079,54 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
         }
     }
 #else
-    int32_t fb_index = 0;
+    static constexpr uint8_t scan_map[4] = {0, 1, 2, 3};
+    size_t fb_index = 0;
 
-    constexpr int PANEL_PAIRS = matrix_panel_pixels >> 1;
-    constexpr int COLUMN_PAIRS = MATRIX_PANEL_WIDTH >> 1;
-    constexpr int HALF_PANEL_OFFSET = (MATRIX_PANEL_HEIGHT >> 1) * MATRIX_PANEL_WIDTH * 3;
-
-    for (int v = 0; v < CHAIN_ROWS; ++v)
+    for (int row = 0; row < PanelConfig::SCAN_DEPTH; ++row)
     {
-        const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) ? (v & 1) : false;
-
-        for (int h = 0; h < CHAIN_COLS; ++h)
+        for (int v = 0; v < CHAIN_ROWS; ++v)
         {
-            // Panel base offset in source buffer
-            const int32_t panel_base = (v * CHAIN_COLS + h) * matrix_panel_pixels;
+            const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) && (v & 1);
 
-            int line = 0;
-            int counter = 0;
-
-            for (int j = 0; j < PANEL_PAIRS; ++j)
+            for (int h = 0; h < CHAIN_COLS; ++h)
             {
-                int32_t idx = map_p10_pixel_pair(j, line);
+                const uint32_t row_base = map_panel_row(row, v, h, reverse);
 
-                // Apply panel offset
-                idx += panel_base;
+                const uint32_t row_ptr[4] = {
+                    (row_base + scan_map[0] * PanelConfig::stride_to_paired_row) * 3,
+                    (row_base + scan_map[1] * PanelConfig::stride_to_paired_row) * 3,
+                    (row_base + scan_map[2] * PanelConfig::stride_to_paired_row) * 3,
+                    (row_base + scan_map[3] * PanelConfig::stride_to_paired_row) * 3,
+                };
 
                 if (reverse)
                 {
-                    // 180° rotation (serpentine)
-                    int32_t offset = (panel_base + (matrix_panel_pixels - 1 - idx)) * 3;
+                    // 180° rotation
+                    //
+                    // reverse:
+                    //   - scan row       (map_panel_row)
+                    //   - traversal      (reverse i)
+                    //   - scan group     (reverse p)
 
-                    rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[offset - 2], src[offset - 1], src[offset]);
-                    rgb_buffer[fb_index + 1] = LUT_MAPPING_RGB(src[offset + HALF_PANEL_OFFSET - 2], src[offset + HALF_PANEL_OFFSET - 1], src[offset + HALF_PANEL_OFFSET]);
+                    for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
+                    {
+                        for (int p = 3; p >= 0; --p)
+                        {
+                            const int32_t base = row_ptr[p];
+                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+                        }
+                    }
                 }
                 else
                 {
-                    int32_t offset = idx * 3;
-                    rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[offset + 2], src[offset + 1], src[offset]);
-                    rgb_buffer[fb_index + 1] = LUT_MAPPING_RGB(src[offset + HALF_PANEL_OFFSET + 2], src[offset + HALF_PANEL_OFFSET + 1], src[offset + HALF_PANEL_OFFSET]);
-                }
-
-                fb_index += 2;
-
-                if (++counter >= COLUMN_PAIRS)
-                {
-                    counter = 0;
-                    ++line;
+                    for (int i = 0; i < MATRIX_PANEL_WIDTH * 3; i += 3)
+                    {
+                        for (int p = 0; p < 4; ++p)
+                        {
+                            const int32_t base = row_ptr[p];
+                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+                        }
+                    }
                 }
             }
         }
@@ -1212,62 +1196,56 @@ __attribute__((optimize("unroll-loops"))) void update(const uint8_t *src)
     //    panel 5 below panel 2.
     //    We have to adapt the mapping of the src-data to compensate the physical rotation by doing a software rotation.
     //
-
     size_t fb_index = 0;
+
     for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++)
     {
-        for (int v = 0; v < CHAIN_ROWS; v++) // v: panel row (vertical chain)
+        for (int v = 0; v < CHAIN_ROWS; v++)
         {
-            const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) ? (v & 1) : false;
+            const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) && (v & 1);
 
-            for (int h = 0; h < CHAIN_COLS; h++) // h: panel column (horizontal chain)
+            for (int h = 0; h < CHAIN_COLS; h++)
             {
                 // Input parameters
                 // row: current row, (v, h): panel coordinates, reverse: U-turn descriptor
                 // Output parameters
-                // row_offset: row offset
-                uint32_t row_offset = map_pixel(row, v, h, reverse);
+                // row_base: row offset
+                const int32_t row_base = map_panel_row(row, v, h, reverse);
+
+                // S31 quarter-row layout
+                const int32_t sign = reverse ? -1 : 1;
+                const int32_t base0 = (row_base + sign * 0 * (int32_t)PanelConfig::stride_to_paired_row) * 3;
+                const int32_t base1 = (row_base + sign * 1 * (int32_t)PanelConfig::stride_to_paired_row) * 3;
+                const int32_t base2 = (row_base + sign * 2 * (int32_t)PanelConfig::stride_to_paired_row) * 3;
+                const int32_t base3 = (row_base + sign * 3 * (int32_t)PanelConfig::stride_to_paired_row) * 3;
 
                 if (reverse)
                 {
-                    const int32_t base1 = (row_offset - 1 * PanelConfig::stride_to_paired_row) * 3;
-                    const int32_t base3 = (row_offset - 3 * PanelConfig::stride_to_paired_row) * 3;
-
-                    // Odd serpentine panel row (180° rotated)
-                    for (int32_t j = 3; j <= MATRIX_PANEL_WIDTH * 3; j += 3)
+                    // 180° rotation:
+                    for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
                     {
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base1 - j - 2], src[base1 - j - 1], src[base1 - j]);
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base3 - j - 2], src[base3 - j - 1], src[base3 - j]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base1 + i + 2], src[base1 + i + 1], src[base1 + i]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base3 + i + 2], src[base3 + i + 1], src[base3 + i]);
                     }
-
-                    const int32_t base0 = (row_offset - 0 * PanelConfig::stride_to_paired_row) * 3;
-                    const int32_t base2 = (row_offset - 2 * PanelConfig::stride_to_paired_row) * 3;
-
-                    for (int32_t j = 3; j <= MATRIX_PANEL_WIDTH * 3; j += 3)
+                    for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
                     {
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base0 - j - 2], src[base0 - j - 1], src[base0 - j]);
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base2 - j - 2], src[base2 - j - 1], src[base2 - j]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base0 + i + 2], src[base0 + i + 1], src[base0 + i]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base2 + i + 2], src[base2 + i + 1], src[base2 + i]);
                     }
                 }
                 else
                 {
-                    const int32_t base1 = (row_offset + 1 * PanelConfig::stride_to_paired_row) * 3;
-                    const int32_t base3 = (row_offset + 3 * PanelConfig::stride_to_paired_row) * 3;
-
-                    // Even row
-                    for (int j = 0; j < MATRIX_PANEL_WIDTH * 3; j += 3)
+                    // Normal orientation
+                    for (int i = 0; i < MATRIX_PANEL_WIDTH * 3; i += 3)
                     {
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base1 + j + 2], src[base1 + j + 1], src[base1 + j]);
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base3 + j + 2], src[base3 + j + 1], src[base3 + j]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base1 + i + 2], src[base1 + i + 1], src[base1 + i]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base3 + i + 2], src[base3 + i + 1], src[base3 + i]);
                     }
 
-                    const int32_t base0 = (row_offset + 0 * PanelConfig::stride_to_paired_row) * 3;
-                    const int32_t base2 = (row_offset + 2 * PanelConfig::stride_to_paired_row) * 3;
-
-                    for (int j = 0; j < MATRIX_PANEL_WIDTH * 3; j += 3)
+                    for (int i = 0; i < MATRIX_PANEL_WIDTH * 3; i += 3)
                     {
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base0 + j + 2], src[base0 + j + 1], src[base0 + j]);
-                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base2 + j + 2], src[base2 + j + 1], src[base2 + j]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base0 + i + 2], src[base0 + i + 1], src[base0 + i]);
+                        rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base2 + i + 2], src[base2 + i + 1], src[base2 + i]);
                     }
                 }
             }

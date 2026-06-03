@@ -174,6 +174,10 @@ static_assert(CHAIN_COLS >= 1, "CHAIN_COLS must be >= 1");
 #define CCM_BG_SHIFT 31 // bits of Green added into Blue output  (31 = off)
 #endif
 
+#ifndef BITPLANES
+#define BITPLANES 10 // default to 10-bit color depth (1024 levels per channel)
+#endif
+
 // Maximum output value for clamping (depends on BITPLANES)
 #if BITPLANES == 10
 #define CCM_MAX_VAL 1023u
@@ -208,10 +212,6 @@ static_assert(CHAIN_COLS >= 1, "CHAIN_COLS must be >= 1");
         (gv) = CCM_CLAMP(_g);                                                 \
         (bv) = CCM_CLAMP(_b);                                                 \
     } while (0)
-
-#ifndef BITPLANES
-#define BITPLANES 10 // default
-#endif
 
 // Balanced Light Output
 // High-weight bit-planes are split into multiple smaller slices within the BCM sequence.
@@ -255,9 +255,8 @@ constexpr uint32_t matrix_panel_pixels = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGH
 constexpr uint32_t DISPLAY_WIDTH = MATRIX_PANEL_WIDTH * CHAIN_COLS;
 constexpr uint32_t DISPLAY_HEIGHT = MATRIX_PANEL_HEIGHT * CHAIN_ROWS;
 
-constexpr size_t TOTAL_PIXELS = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT * CHAIN_ROWS * CHAIN_COLS;
+constexpr size_t TOTAL_PIXELS = DISPLAY_WIDTH * DISPLAY_HEIGHT;
 
-#define LUT_MAPPING(COLOUR) pack_lut_rgb(COLOUR)
 #define LUT_MAPPING_RGB(R, G, B) pack_lut_rgb_(R, G, B)
 
 // At the moment only used for HUB75_P10_3535_16X32_4S panels
@@ -271,8 +270,9 @@ constexpr size_t TOTAL_PIXELS = MATRIX_PANEL_WIDTH * MATRIX_PANEL_HEIGHT * CHAIN
 
 // Macro to return a value clamped between a minimum and maximum
 #ifndef CLAMP
-#define CLAMP(a, mn, mx) ((a)<(mx)?((a)>(mn)?(a):(mn)):(mx))
+#define CLAMP(a, mn, mx) ((a) < (mx) ? ((a) > (mn) ? (a) : (mn)) : (mx))
 #endif
+
 namespace PanelConfig
 {
     constexpr uint32_t WIDTH = MATRIX_PANEL_WIDTH;
@@ -298,10 +298,11 @@ namespace PanelConfig
     // BITPLANE_STREAM_LENGTH: number of bytes streamed for each row (including paired rows) in a bitplane
     // Used in hub75_bitplane_stream as value of Y-register
     // Each OUT instruction writes color information for 2 pixels r0g0b0 and r1b1g1, therefore term  ">> 1u"
-    constexpr uint32_t BITPLANE_STREAM_LENGTH = ((MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS) >> 1u) * ROWS_IN_PARALLEL;
+    constexpr int32_t BITPLANE_STREAM_LENGTH = ((MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS) >> 1u) * ROWS_IN_PARALLEL;
 
-    constexpr uint32_t stride_row = MATRIX_PANEL_WIDTH * CHAIN_ROWS;
-    constexpr uint32_t stride_to_paired_row = MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS * SCAN_DEPTH;
+    constexpr int32_t stride_row = MATRIX_PANEL_WIDTH * CHAIN_COLS;
+    // constexpr uint32_t stride_to_paired_row = MATRIX_PANEL_WIDTH * CHAIN_ROWS * CHAIN_COLS * SCAN_DEPTH;
+    constexpr int32_t stride_to_paired_row = SCAN_DEPTH * DISPLAY_WIDTH;
 }
 
 enum Hub75ChainMode
@@ -317,7 +318,6 @@ void setIntensity(float intensity, bool linear_brightness_control);
 void create_hub75_driver(uint w, uint h, uint panel_type, bool stb_inverted);
 void start_hub75_driver();
 void update_bgr(const uint8_t *src);
-void update(const uint8_t *src);
 void update_area_bgr(const uint8_t *src, const int32_t x1, const int32_t y1, const int32_t x2, const int32_t y2);
 
 #if defined(HUB75_MULTIPLEX_2_ROWS)

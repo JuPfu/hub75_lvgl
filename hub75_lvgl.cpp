@@ -38,9 +38,9 @@ enum DemoIndex
     DEMO_COLOUR,
 };
 
-static critical_section_t crit_sec = {0};                                       ///< Synchronization for safe time reading
-static int frame_index = DEMO_BOUNCE;                                           ///< Current demo index
-static uint8_t buf1[MATRIX_PANEL_WIDTH * MATRIX_PANEL_WIDTH * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
+static critical_section_t crit_sec = {0};                              ///< Synchronization for safe time reading
+static int frame_index = DEMO_BOUNCE;                                  ///< Current demo index
+static uint8_t buf1[DISPLAY_WIDTH * DISPLAY_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
 
@@ -95,7 +95,7 @@ uint32_t get_milliseconds_since_boot()
  */
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 {
-    update(px_map);                  ///< Transfer buffer to display driver
+    update_bgr(px_map);              ///< Transfer buffer to display driver
     lv_display_flush_ready(display); ///< Notify LVGL that flush is complete
 }
 
@@ -300,7 +300,7 @@ int main()
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), DISPLAY_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), DISPLAY_WIDTH * BYTES_PER_PIXEL, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
@@ -315,6 +315,13 @@ int main()
 
     struct repeating_timer timer;
     add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
+
+    // set basis brightness of matrix panel
+    setBasisBrightness(8);
+
+    // set full brightness of panel
+    float intensity = 1.0f;
+    setIntensity(intensity);
 
     while (true)
     {
