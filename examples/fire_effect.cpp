@@ -3,10 +3,6 @@
 
 #include <cstdlib>
 
-// Display size in pixels
-// Should be either 64x64 or 32x32 but perhaps 64x32 an other sizes will work.
-// Note: this example uses only 5 address lines so it's limited to 32*2 pixels.
-
 void FireEffect::burn()
 {
     lv_canvas_init_layer(canvas, &layer);
@@ -46,7 +42,7 @@ void FireEffect::burn()
     }
 
     // add a new random heat source
-    int source_count = landscape ? 7 : 1;
+    int source_count = landscape ? 7 : 3;
     for (int c = 0; c < source_count; c++)
     {
         int px = (rand() % (width - 4)) + 2;
