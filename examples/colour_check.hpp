@@ -42,8 +42,8 @@ public:
         img_desc.data = colour_squares_map;
 
         lv_image_set_src(colour_squares, &img_desc);
-        lv_image_set_scale_x(colour_squares, 64);
-        lv_image_set_scale_y(colour_squares, 92);
+        lv_image_set_scale_x(colour_squares, MIN(width, header.w));
+        lv_image_set_scale_y(colour_squares, MIN(height, header.h));
         lv_image_set_antialias(colour_squares, true);
         lv_image_set_pivot(colour_squares, 256 / 2, 180 / 2);
         lv_obj_align(colour_squares, LV_ALIGN_CENTER, 0, 0);
