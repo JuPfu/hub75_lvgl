@@ -47,10 +47,10 @@ public:
         vanessa = lv_image_create(screen);
 
         header.magic = LV_IMAGE_HEADER_MAGIC;
-        header.w = width;
-        header.h = height;
+        header.w = 64;
+        header.h = 64;
         header.cf = LV_COLOR_FORMAT_RGB888;
-        header.stride = width * BYTES_PER_PIXEL;
+        header.stride = 64 * BYTES_PER_PIXEL;
         header.flags = 0x0;
         header.reserved_2 = 0;
 
@@ -59,16 +59,20 @@ public:
         {
             img_desc.data_size = sizeof(matreshka_32x16);
             img_desc.data = matreshka_32x16;
+
+            lv_image_set_src(vanessa, &img_desc);
+            lv_image_set_antialias(vanessa, true);
+            lv_image_set_pivot(vanessa, 32 / 2, 16 / 2);
         }
         else
         {
             img_desc.data_size = sizeof(vanessa_mai_64x64);
             img_desc.data = vanessa_mai_64x64;
+
+            lv_image_set_src(vanessa, &img_desc);
+            lv_image_set_antialias(vanessa, true);
         }
 
-        lv_image_set_src(vanessa, &img_desc);
-        lv_image_set_antialias(vanessa, true);
-        lv_image_set_pivot(vanessa, width / 2, height / 2);
         lv_obj_align(vanessa, LV_ALIGN_CENTER, 0, 0);
 
         lv_anim_init(&a);
