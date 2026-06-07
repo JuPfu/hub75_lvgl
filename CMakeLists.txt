@@ -38,11 +38,10 @@ project(hub75_lvgl C CXX ASM)
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-add_executable(hub75_lvgl hub75_lvgl.cpp)
+add_executable(${PROJECT_NAME} hub75_lvgl.cpp)
 
-pico_set_program_name(hub75_lvgl "hub75_lvgl")
-pico_set_program_version(hub75_lvgl "3.1")
-
+pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
+pico_set_program_version(${PROJECT_NAME} "3.2")
 
 set(PANEL_GENERIC 0)
 set(PANEL_FM6126A 1)
@@ -62,7 +61,7 @@ target_compile_definitions(hub75_lvgl PRIVATE
     MATRIX_PANEL_WIDTH=64       # your matrix panel width
     MATRIX_PANEL_HEIGHT=64      # your matrix panel height
     CHAIN_MODE=CHAIN_MODE_SERPENTINE # set chain-mode - default is serpentine (U-Turn with compensation for 180° rotation)
-    CHAIN_COLS=1                # number of panels chained left-to-right in a single chain row (columns)
+    CHAIN_COLS=2                # number of panels chained left-to-right in a single chain row (columns)
     CHAIN_ROWS=1                # number of chain rows stacked vertically (rows)
     DATA_BASE_PIN=0             # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
     DATA_N_PINS=6               # number (count) of colour pins (usually 6)
@@ -72,12 +71,12 @@ target_compile_definitions(hub75_lvgl PRIVATE
     STROBE_PIN=12               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
     OEN_PIN=13                  # GPIO for OE pin - use pin 43 for PICO_RP2350B
     HUB75=1                     # 
-    PANEL_TYPE=PANEL_GENERIC    # select PANEL_TYPE
+    PANEL_TYPE=PANEL_RUL6024    # select PANEL_TYPE
     INVERTED_STB=false          # inverted pin signal for OE (untested)
     SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
-    BITPLANES=8                # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
-    BALANCED_LIGHT_OUTPUT=false  # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
-    SEPARATE_CIE_CHANNELS=false  # use separate CIE channels for improved colour representation - needs more memory
+    BITPLANES=8                 # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
+    BALANCED_LIGHT_OUTPUT=false # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
+    SEPARATE_CIE_CHANNELS=false # use separate CIE channels for improved colour representation - needs more memory
     CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
     CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
     BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
@@ -92,7 +91,7 @@ pico_enable_stdio_uart(hub75_lvgl 0)
 pico_enable_stdio_usb(hub75_lvgl 1)
 
 # Generate PIO header
-pico_generate_pio_header(hub75_lvgl ${CMAKE_CURRENT_LIST_DIR}/src/hub75.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/hub75.pio)
 
 # Add the lvgl library
 message(NOTICE "===>>> LVGL configuration start ===") 
@@ -111,7 +110,7 @@ add_subdirectory(${LVGL_DIR_NAME})
 
 message(NOTICE "=== LVGL configuraton end <<<===") 
 
-target_sources(hub75_lvgl PRIVATE
+target_sources(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src/hub75.cpp
         ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/fm6126a.cpp
@@ -123,14 +122,14 @@ target_sources(hub75_lvgl PRIVATE
         )
 
 # Add the standard include files to the build
-target_include_directories(hub75_lvgl PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src
         ${CMAKE_CURRENT_LIST_DIR}/examples
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Add any user requested libraries
-target_link_libraries(hub75_lvgl 
+target_link_libraries(${PROJECT_NAME} 
         pico_stdlib
         pico_multicore
         hardware_pio
@@ -140,9 +139,9 @@ target_link_libraries(hub75_lvgl
         )
 
 if(PICO_CYW43_SUPPORTED)
-    target_link_libraries(hub75_lvgl
+    target_link_libraries(${PROJECT_NAME}
                           pico_cyw43_arch_none)
 endif()
 
-pico_add_extra_outputs(hub75_lvgl)
+pico_add_extra_outputs(${PROJECT_NAME})
 
