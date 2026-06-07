@@ -34,6 +34,42 @@ include(pico_sdk_import.cmake)
 
 project(hub75_lvgl C CXX ASM)
 
+
+# ── LVGL via FetchContent ──────────────────────────────────────────────────────
+message(STATUS "===>>> LVGL configuration start ===") 
+
+set(FETCHCONTENT_QUIET OFF CACHE BOOL "" FORCE)
+
+include(FetchContent)
+
+# Tell LVGL where lv_conf.h lives — must be set BEFORE FetchContent_MakeAvailable
+set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h CACHE STRING "" FORCE)
+
+set(LVGL_DIR_NAME lvgl-src) # The name of the lvgl folder (change this if you have renamed it)
+set(LVGL_DIR  ${CMAKE_CURRENT_LIST_DIR}/build/_deps) # The path where the lvgl folder is
+
+# Disable demos and examples — not needed on embedded target, saves flash/RAM
+set(LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LV_BUILD_DEMOS    OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    lvgl
+    GIT_REPOSITORY https://github.com/lvgl/lvgl.git
+    GIT_TAG        v9.4.0
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
+
+message(STATUS "⏳ Fetching LVGL v9.4.0 (this may take a minute on first run)...")
+FetchContent_MakeAvailable(lvgl)
+message(STATUS "✅ LVGL ready")
+message(STATUS "LVGL folder name: ${LVGL_DIR_NAME}") 
+message(STATUS "Path to LVGL folder: ${LVGL_DIR}")
+message(STATUS "Path to config file: ${LV_CONF_PATH}")
+message(STATUS "LVGL source dir: ${lvgl_SOURCE_DIR}")
+message(STATUS "=== LVGL configuraton end <<<===") 
+# ──────────────────────────────────────────────────────────────────────────────
+
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
@@ -55,7 +91,7 @@ set(CHAIN_MODE_RASTER 1)
 # Example:
 # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
-target_compile_definitions(hub75_lvgl PRIVATE
+target_compile_definitions(${PROJECT_NAME} PRIVATE
     # PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
     USE_PICO_GRAPHICS=true      # set to false if you use hub75 as a library - any reference to pico_graphics is removed
     MATRIX_PANEL_WIDTH=64       # your matrix panel width
@@ -93,23 +129,6 @@ pico_enable_stdio_usb(hub75_lvgl 1)
 # Generate PIO header
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/hub75.pio)
 
-# Add the lvgl library
-message(NOTICE "===>>> LVGL configuration start ===") 
-
-set(LVGL_DIR_NAME lvgl) # The name of the lvgl folder (change this if you have renamed it)
-set(LVGL_DIR  ${CMAKE_CURRENT_LIST_DIR}) # The path where the lvgl folder is
-set(LV_CONF_PATH  ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h) # The path to the lv_conf.h file
-set(LV_CONF_INCLUDE_SIMPLE  ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h) # The path to the lv_conf.h file
-
-message(NOTICE "LVGL folder name: ${LVGL_DIR_NAME}") 
-message(NOTICE "Path to LVGL folder: ${LVGL_DIR}")
-message(NOTICE "Path to config file: ${LV_CONF_PATH}")
-message(NOTICE "Include path set for `LV_CONF_INCLUDE_SIMPLE` ${LV_CONF_INCLUDE_SIMPLE}")
-
-add_subdirectory(${LVGL_DIR_NAME})
-
-message(NOTICE "=== LVGL configuraton end <<<===") 
-
 target_sources(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src/hub75.cpp
         ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
@@ -123,9 +142,10 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 # Add the standard include files to the build
 target_include_directories(${PROJECT_NAME} PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR} # for #include "lv_conf.h" to resolve
+        ${CMAKE_CURRENT_LIST_DIR}/src 
         ${CMAKE_CURRENT_LIST_DIR}/examples
-        ${CMAKE_CURRENT_LIST_DIR}
+        ${lvgl_SOURCE_DIR} # make "lvgl/src/..." resolvable
 )
 
 # Add any user requested libraries
@@ -139,8 +159,7 @@ target_link_libraries(${PROJECT_NAME}
         )
 
 if(PICO_CYW43_SUPPORTED)
-    target_link_libraries(${PROJECT_NAME}
-                          pico_cyw43_arch_none)
+    target_link_libraries(${PROJECT_NAME} pico_cyw43_arch_none)
 endif()
 
 pico_add_extra_outputs(${PROJECT_NAME})

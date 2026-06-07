@@ -13,10 +13,7 @@
 
 #include "hub75.hpp"
 
-#include "lvgl/src/lv_init.h"
-#include "lvgl/src/core/lv_refr.h"
-#include "lvgl/src/display/lv_display.h"
-#include "lvgl/src/tick/lv_tick.h"
+#include "lvgl.h"
 
 #include "bouncing_balls.hpp"
 #include "fire_effect.hpp"

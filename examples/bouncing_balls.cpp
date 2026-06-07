@@ -3,12 +3,6 @@
 #include "bouncing_balls.hpp"
 #include <random>
 
-#include "lvgl.h"
-
-#include "lvgl/src/font/lv_font.h"
-
-#include "lvgl/src/widgets/label/lv_label.h"
-
 void BouncingBalls::bounce()
 {
     lv_canvas_fill_bg(canvas, lv_color_make(100, 80, 170), LV_OPA_COVER);
