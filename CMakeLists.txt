@@ -34,7 +34,6 @@ include(pico_sdk_import.cmake)
 
 project(hub75_lvgl C CXX ASM)
 
-
 # ── LVGL via FetchContent ──────────────────────────────────────────────────────
 message(STATUS "===>>> LVGL configuration start ===") 
 
@@ -52,15 +51,17 @@ set(LVGL_DIR  ${CMAKE_CURRENT_LIST_DIR}/build/_deps) # The path where the lvgl f
 set(LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(LV_BUILD_DEMOS    OFF CACHE BOOL "" FORCE)
 
+set(LV_TAG v9.4.0) # use this version of LVGL
+
 FetchContent_Declare(
     lvgl
     GIT_REPOSITORY https://github.com/lvgl/lvgl.git
-    GIT_TAG        v9.4.0
+    GIT_TAG        ${LV_TAG}
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
 
-message(STATUS "⏳ Fetching LVGL v9.4.0 (this may take a minute on first run)...")
+message(STATUS "⏳ Fetching LVGL ${LV_TAG} (this may take a minute on first run)...")
 FetchContent_MakeAvailable(lvgl)
 message(STATUS "✅ LVGL ready")
 message(STATUS "LVGL folder name: ${LVGL_DIR_NAME}") 
