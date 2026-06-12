@@ -594,6 +594,7 @@ void read_chan_handler()
         // - to display new content of frame_buffer on matrix panel
         // - to make new "back-buffer" available for writing
         swap_frame_buffer_pending = true;
+        // printf("finish read_chan_handler\n");
     }
 }
 
@@ -947,6 +948,13 @@ inline int32_t map_panel_row(int row, int v, int h, bool reverse)
     return panel_top_left + local_row * (int32_t)DISPLAY_WIDTH;
 }
 
+inline bool pixel_in_area(int32_t pos, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
+{
+    int32_t y = pos / DISPLAY_WIDTH;
+    int32_t x = pos % DISPLAY_WIDTH;
+    return y >= y1 && y <= y2 && x >= x1 && x <= x2;
+}
+
 /**
  * @brief Updates the frame buffer with pixel data from the source array.
  *
@@ -955,19 +963,33 @@ inline int32_t map_panel_row(int row, int v, int h, bool reverse)
  *
  * @param src Graphics object to be updated - RGB888 format, 24-bits in uint32_t array
  */
-__attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
+__attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src, const int32_t x1, const int32_t y1, const int32_t x2, const int32_t y2)
 {
+    // printf("update_bgr area %d  %d  %d  %d\n", x1, y1, x2, y2);
+    dma_channel_wait_for_finish_blocking (write_chan);
 #if defined(HUB75)
 #if CHAIN_COLS == 1 && CHAIN_ROWS == 1
-    constexpr int32_t triple_stride_to_paired_row = 3 * PanelConfig::stride_to_paired_row;
-
     int32_t fb_index = 0;
-    for (int32_t i = 0; i < triple_stride_to_paired_row; i += 3)
+
+    for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++)
     {
-        for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
+        const int32_t row_base = map_panel_row(row, 0, 0, false);
+        // row_base = row * DISPLAY_WIDTH  (pixel index, top half)
+
+        for (int32_t i = 0; i < DISPLAY_WIDTH * 3; i += 3)
         {
-            const int32_t offset = p * triple_stride_to_paired_row;
-            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[offset + i + 2], src[offset + i + 1], src[offset + i]);
+            for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
+            {
+                const int32_t base = (row_base + p * PanelConfig::stride_to_paired_row) * 3;
+
+                if (pixel_in_area((base + i) / 3, x1, y1, x2, y2))
+                {
+                    int32_t src_idx = (row_base + p * PanelConfig::stride_to_paired_row - y1 * DISPLAY_WIDTH - x1) * 3 + i;
+
+                    rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[src_idx + 2], src[src_idx + 1], src[src_idx + 0]);
+                }
+                fb_index++;
+            }
         }
     }
 #else
@@ -996,7 +1018,7 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
 
     size_t fb_index = 0;
 
-    for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++)
+    for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++) // ← full scan depth, always
     {
         for (int v = 0; v < CHAIN_ROWS; v++)
         {
@@ -1004,30 +1026,22 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
 
             for (int h = 0; h < CHAIN_COLS; h++)
             {
-                // Input parameters
-                // row: current row, (v, h): panel coordinates, reverse: U-turn descriptor
-                // Output parameters
-                // row_base: row offset
-                //
-                // map_panel_row():
-                //   - selects physical panel
-                //   - selects row inside panel
                 const int32_t row_base = map_panel_row(row, v, h, reverse);
 
                 if (reverse)
                 {
-                    // True 180° rotation:
-                    //
-                    // reverse:
-                    //   - local scan row      (done in map_panel_row)
-                    //   - X traversal         (done here)
-                    //   - multiplex ordering  (done here)
                     for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
                     {
                         for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
                         {
                             const int32_t base = (row_base - p * PanelConfig::stride_to_paired_row) * 3;
-                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+
+                            if (pixel_in_area((base + i) / 3, x1, y1, x2, y2)) // need y-check too!
+                            {
+                                int32_t src_idx = (row_base - p * PanelConfig::stride_to_paired_row - y1 * DISPLAY_WIDTH - x1) * 3 + i;
+                                rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[src_idx + 2], src[src_idx + 1], src[src_idx + 0]);
+                            }
+                            fb_index++;
                         }
                     }
                 }
@@ -1038,13 +1052,71 @@ __attribute__((optimize("unroll-loops"))) void update_bgr(const uint8_t *src)
                         for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
                         {
                             const int32_t base = (row_base + p * PanelConfig::stride_to_paired_row) * 3;
-                            rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+
+                            if (pixel_in_area((base + i) / 3, x1, y1, x2, y2))
+                            {
+                                int32_t src_idx = (row_base + p * PanelConfig::stride_to_paired_row - y1 * DISPLAY_WIDTH - x1) * 3 + i;
+                                rgb_buffer[fb_index] = LUT_MAPPING_RGB(src[src_idx + 2], src[src_idx + 1], src[src_idx + 0]);
+                            }
+                            fb_index++;
                         }
                     }
                 }
             }
         }
     }
+
+    // size_t fb_index = 0;
+
+    // for (int row = 0; row < PanelConfig::SCAN_DEPTH; row++)
+    // {
+    //     for (int v = 0; v < CHAIN_ROWS; v++)
+    //     {
+    //         const bool reverse = (CHAIN_MODE == CHAIN_MODE_SERPENTINE) && (v & 1);
+
+    //         for (int h = 0; h < CHAIN_COLS; h++)
+    //         {
+    //             // Input parameters
+    //             // row: current row, (v, h): panel coordinates, reverse: U-turn descriptor
+    //             // Output parameters
+    //             // row_base: row offset
+    //             //
+    //             // map_panel_row():
+    //             //   - selects physical panel
+    //             //   - selects row inside panel
+    //             const int32_t row_base = map_panel_row(row, v, h, reverse);
+
+    //             if (reverse)
+    //             {
+    //                 // True 180° rotation:
+    //                 //
+    //                 // reverse:
+    //                 //   - local scan row      (done in map_panel_row)
+    //                 //   - X traversal         (done here)
+    //                 //   - multiplex ordering  (done here)
+    //                 for (int i = (MATRIX_PANEL_WIDTH - 1) * 3; i >= 0; i -= 3)
+    //                 {
+    //                     for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
+    //                     {
+    //                         const int32_t base = (row_base - p * PanelConfig::stride_to_paired_row) * 3;
+    //                         rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+    //                     }
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 for (int i = 0; i < MATRIX_PANEL_WIDTH * 3; i += 3)
+    //                 {
+    //                     for (int p = 0; p < PanelConfig::ROWS_IN_PARALLEL; ++p)
+    //                     {
+    //                         const int32_t base = (row_base + p * PanelConfig::stride_to_paired_row) * 3;
+    //                         rgb_buffer[fb_index++] = LUT_MAPPING_RGB(src[base + i + 2], src[base + i + 1], src[base + i]);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 #endif
 #elif defined HUB75_P10_3535_16X32_4S
 #if CHAIN_COLS == 1 && CHAIN_ROWS == 1
