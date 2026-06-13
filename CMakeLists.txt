@@ -24,11 +24,11 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-# set(PICO_BOARD pico2 CACHE STRING "Board type")
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Uncomment the following two lines to compile for bare RP2350 without a board
-set(PICO_PLATFORM rp2350)
-set(PICO_BOARD none CACHE STRING "Board type")
+# set(PICO_PLATFORM rp2350)
+# set(PICO_BOARD none CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -109,20 +109,20 @@ pico_set_program_version(${PROJECT_NAME} "3.3")
 # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
 target_compile_definitions(hub75_lvgl PRIVATE
-    PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
+    # PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
     USE_PICO_GRAPHICS=true      # set to false if you use hub75 as a library - any reference to pico_graphics is removed
     MATRIX_PANEL_WIDTH=64       # your matrix panel width
     MATRIX_PANEL_HEIGHT=64      # your matrix panel height
     CHAIN_MODE=CHAIN_MODE_SERPENTINE # set chain-mode - default is serpentine (U-Turn with compensation for 180° rotation)
     CHAIN_COLS=2                # number of panels chained left-to-right in a single chain row (columns)
     CHAIN_ROWS=1                # number of chain rows stacked vertically (rows)
-    DATA_BASE_PIN=30             # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
+    DATA_BASE_PIN=0             # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
     DATA_N_PINS=6               # number (count) of colour pins (usually 6)
-    ROWSEL_BASE_PIN=36           # base GPIO address pin (aka start index) of A, B (, C, D. E) GPIO pins - use 36 for PICO_RP2350B
+    ROWSEL_BASE_PIN=6           # base GPIO address pin (aka start index) of A, B (, C, D. E) GPIO pins - use 36 for PICO_RP2350B
     ROWSEL_N_PINS=5             # number (count) of address pins available on your matrix panel board (look at your panels connector)
-    CLK_PIN=41                  # GPIO pin for CLK - use pin 41 for PICO_RP2350B
-    STROBE_PIN=42               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
-    OEN_PIN=43                  # GPIO for OE pin - use pin 43 for PICO_RP2350B
+    CLK_PIN=11                  # GPIO pin for CLK - use pin 41 for PICO_RP2350B
+    STROBE_PIN=12               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
+    OEN_PIN=13                  # GPIO for OE pin - use pin 43 for PICO_RP2350B
     HUB75=1                     # 
     PANEL_TYPE=PANEL_RUL6024    # select PANEL_TYPE
     INVERTED_STB=false          # inverted pin signal for OE (untested)
@@ -136,7 +136,7 @@ target_compile_definitions(hub75_lvgl PRIVATE
     BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
     BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
     HUB75_MULTICORE=true        # use core1 for the hub75 driver
-    FRAME_RATE=true            # for testing and debugging purpose only: output frame rate information (printf) in monitor - set to `false` for production
+    FRAME_RATE=false            # for testing and debugging purpose only: output frame rate information (printf) in monitor - set to `false` for production
 )
 
 # Modify the below lines to enable/disable output over UART/USB

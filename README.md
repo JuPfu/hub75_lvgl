@@ -2,6 +2,10 @@
 
 This project demonstrates how to run [LVGL](https://lvgl.io/) on a Raspberry Pi Pico (RP2040 or RP2040-compatible microcontroller) to drive an attached HUB75 RGB LED matrix panel.
 
+## Last Changes
+
+I followed [cmair](https://github.com/cmair)'s suggestion to fetch (download) `LVGL` during the build process. This results in weaker coupling with `LVGL`. It also makes it easy to switch to a different version of `LVGL` by simply setting `LV_TAG` to the desired version, e.g., `set(LV_TAG v9.4.0)`.
+
 ## Demo Effects
 
 This project currently demonstrates three animated demos:
