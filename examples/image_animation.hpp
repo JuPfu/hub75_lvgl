@@ -2,9 +2,7 @@
 #include "pico/stdlib.h"
 #include "pico/printf.h"
 
-#include "lvgl/src/display/lv_display.h"
-#include "lvgl/src/misc/lv_anim.h"
-#include "lvgl/src/widgets/image/lv_image.h"
+#include "lvgl.h"
 
 #include "vanessa_mai_64x64.h"
 #include "matreshka_32x16.h"

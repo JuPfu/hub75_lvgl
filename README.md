@@ -48,51 +48,31 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ---
 
-## Integrating LVGL into a Pico Project
+## Integrating a different LVGL into this Project
 
 Currently **LVGL** version 9.4.0 is integrated in the project. If you want to switch to another version follow the steps described here:
 
-1. **Download** the latest version of [LVGL](https://github.com/lvgl/lvgl)
-2. **Extract** the zip and rename the folder to `lvgl`
-3. **Copy** it into your project's top-level directory
-4. **Configure LVGL**
-   - Copy `lv_conf_template.h` to your top-level directory
+1. **Set**  the variable `LV_TAG` in file CMakeLists.txt (see at or near line 49) to the tag 🏷️ (e.g. <em>v9.5.0</em>) associated with the LVGL version you are aiming at (see [LVGL Releases](https://github.com/lvgl/lvgl/releases) for valid tag names)
+
+2. **Configure LVGL**
+   - Copy `lv_conf_template.h` from `build/_deps/lvgl-src` to your top-level directory
    - Rename it to `lv_conf.h`
    - Modify it to match your needs (use this project as reference)
 
    Your directory structure should look similar to this
 
    ```bash
-   lvgl/
-   lv_conf.h
-   other files and folders in your project, e.g. 
+   assets
+   build
+   examples
+   src
+   utils
+   build.sh
    CMakeLists.txt
+   hub75_lvgl.cpp
+   lv_conf.h
+   README.md
    ```
-
-5. **Add this snippet** to your `CMakeLists.txt`
-
-   ```cmake
-   # LVGL configuration
-   message(NOTICE "===>>> LVGL configuration start ===")
-
-   set(LVGL_DIR_NAME lvgl)
-   set(LVGL_DIR ${CMAKE_CURRENT_LIST_DIR})
-   set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
-   set(LV_CONF_INCLUDE_SIMPLE ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h)
-
-   message(NOTICE "LVGL folder name: ${LVGL_DIR_NAME}")
-   message(NOTICE "Path to LVGL folder: ${LVGL_DIR}")
-   message(NOTICE "Path to config file: ${LV_CONF_PATH}")
-   message(NOTICE "Include path: ${LV_CONF_INCLUDE_SIMPLE}")
-
-   add_subdirectory(${LVGL_DIR_NAME})
-
-   message(NOTICE "=== LVGL configuration end <<<===")
-   ```
-
-   See the projects `CMakeLists.txt` for details.
-6. Follow the [LVGL Integration Guide](https://docs.lvgl.io/master/details/integration/index.html)
-
 ---
 
 ## Connecting LVGL to the HUB75 Driver
@@ -218,6 +198,8 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
 
 7. **Build and Upload**:
    - Compiling the project can be done without a Pico attached to the computer.
+  
+     ⚠️ The first build will take a little bit longer as LVGL is downloaded into the build/_deps folder
 
       <img src="assets/VSCode_6.png" width="600" height="416">
 
@@ -225,6 +207,19 @@ You can easily use this project with VSCode, especially with the **Raspberry Pi 
    - VSCode will compile and upload the firmware to your Pico board.
 
 > 💡 If everything is set up correctly, your matrix should come to life with the updated HUB75 DMA driver.
+
+---
+
+## How to Build this Project from the Command Line
+
+For **MacOS** open a terminal window and execute the following commands:
+
+```bash
+git clone https://github.com/JuPfu/hub75_lvgl
+cd hub75_lvgl
+./build.sh
+```
+This hasn't been tested on **Linux** yet, but it might work there as well. 🤞
 
 ---
 

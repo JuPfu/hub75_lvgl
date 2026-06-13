@@ -4,10 +4,6 @@
 
 #include "lvgl.h"
 
-#include "lvgl/src/misc/lv_types.h"
-#include "lvgl/src/misc/lv_anim.h"
-#include "lvgl/src/widgets/image/lv_image.h"
-
 #include "colour_squares.h"
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))

@@ -5,11 +5,7 @@
 
 #include "pico/stdlib.h"
 
-#include "lvgl/src/display/lv_display.h"
-#include "lvgl/src/misc/lv_color.h"
-#include "lvgl/src/widgets/canvas/lv_canvas.h"
-#include "lvgl/src/draw/lv_draw_rect.h"
-#include "lvgl/src/widgets/label/lv_label.h"
+#include "lvgl.h"
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
 
