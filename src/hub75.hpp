@@ -317,7 +317,7 @@ void setIntensity(float intensity, bool linear_brightness_control);
 
 void create_hub75_driver(uint w, uint h, uint panel_type, bool stb_inverted);
 void start_hub75_driver();
-void update_bgr(const uint8_t *src, const int32_t x1, const int32_t y1, const int32_t x2, const int32_t y2);
+void update_bgr(const uint8_t *src);
 void update_area_bgr(const uint8_t *src, const int32_t x1, const int32_t y1, const int32_t x2, const int32_t y2);
 
 #if defined(HUB75_MULTIPLEX_2_ROWS)
