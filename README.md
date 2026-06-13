@@ -4,7 +4,7 @@ This project demonstrates how to run [LVGL](https://lvgl.io/) on a Raspberry Pi 
 
 ## Last Changes
 
-I followed [cmair](https://github.com/cmair)'s suggestion to fetch (download) `LVGL` during the build process. This results in weaker coupling with `LVGL`. It also makes it easy to switch to a different version of `LVGL` by simply setting `LV_TAG` to the desired version, e.g., `set(LV_TAG v9.4.0)`.
+I followed [cmair](https://github.com/cmair)'s suggestion to fetch (download) `LVGL` during the build process. This results in weaker coupling with `LVGL`. It also makes it easy to switch to a different version of `LVGL` by setting `LV_TAG` to the desired version in `CMakeLists.txt`, e.g., `set(LV_TAG v9.4.0)`.
 
 ## Demo Effects
 
@@ -168,7 +168,7 @@ If everything is wired up correctly, your LED matrix should light up with the de
 |---|---|
 | First build hangs at "Activating content" | This is normal — LVGL is being downloaded. Check the **Output → CMake/Build** panel for progress. |
 | `fatal error: lvgl/...: No such file or directory` | LVGL include paths changed — make sure source files use `#include "lvgl.h"`. |
-| CMake errors about duplicate `lvgl` targets | Run `rm -rf build` and reconfigure — a stale `build/` directory can conflict with a fresh LVGL fetch. For VSCode create a new build directory before compiling again.|
+| CMake errors about duplicate `lvgl` targets | Run `rm -rf build` and reconfigure — a stale `build/` directory can conflict with a fresh LVGL fetch. For VSCode manualy create a new build directory before compiling again.|
 | Build seems stuck with no output | Try running from the command line (`./build.sh`) instead, where progress is more visible. |
 
 ---
