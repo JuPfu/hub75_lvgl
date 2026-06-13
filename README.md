@@ -18,10 +18,10 @@ This project currently demonstrates three animated demos:
 
 ## Project Goals and Focus
 
-The LED matrix driver used in this project is an evolution of [Pimoroni's HUB75 driver](https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75) which leans on [Raspberry Pi's pico-examples/pio/hub75](https://github.com/raspberrypi/pico-examples). It is an optimised driver which boosts performance through self-paced, interlinked DMA and PIO processes. The LED Matrix driver implementation is described in detail in [Hub75](https://github.com/JuPfu/hub75). In this referenced project the examples utilise [Pimoronis Pico Graphics library](https://github.com/pimoroni/pimoroni-pico/tree/main/libraries/pico_graphics) to show the capabilities of the LED matrix driver. `Pimoronis Pico Graphics library` is a tiny graphics library ...
+The LED matrix driver used in this project is an evolution of [Pimoroni's HUB75 driver](https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/hub75) which leans on [Raspberry Pi's pico-examples/pio/hub75](https://github.com/raspberrypi/pico-examples). It is an optimised driver which boosts performance through self-paced, interlinked DMA and PIO processes. The LED Matrix driver implementation is described in detail in [Hub75](https://github.com/JuPfu/hub75). In this referenced project the examples utilise [Pimoroni's Pico Graphics library](https://github.com/pimoroni/pimoroni-pico/tree/main/libraries/pico_graphics) to show the capabilities of the LED matrix driver. `Pimoroni's Pico Graphics library` is a tiny graphics library ...
 > which supports drawing text, primitive and individual pixels and includes basic types such as Rect and Point brimming with methods to help you develop games and applications.
 
-The goal of this project is to substitute `Pimoronis Pico Graphics library` with the **[Light and Versatile Graphics Library](https://lvgl.io/)** (LVGL), which claims ...
+The goal of this project is to substitute `Pimoroni's Pico Graphics library` with the **[Light and Versatile Graphics Library](https://lvgl.io/)** (LVGL), which claims ...
 > to be the most popular free and open-source embedded graphics library to create beautiful UIs for any MCU, MPU and display type.
 
 ## Hardware Setup
@@ -48,31 +48,155 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 ---
 
-## Integrating a different LVGL into this Project
+## Building the Project
 
-Currently **LVGL** version 9.4.0 is integrated in the project. If you want to switch to another version follow the steps described here:
+This section walks through everything needed to go from a fresh clone to a flashable `.uf2` file — whether you prefer the command line or VSCode.
 
-1. **Set**  the variable `LV_TAG` in file CMakeLists.txt (see at or near line 49) to the tag 🏷️ (e.g. <em>v9.5.0</em>) associated with the LVGL version you are aiming at (see [LVGL Releases](https://github.com/lvgl/lvgl/releases) for valid tag names)
+### What happens during a build (in plain words)
 
-2. **Configure LVGL**
-   - Copy `lv_conf_template.h` from `build/_deps/lvgl-src` to your top-level directory
+Building this project involves three things that happen automatically, so you normally don't need to set anything up by hand:
+
+1. **The Raspberry Pi Pico SDK** is located (or downloaded if missing).
+2. **LVGL** (the graphics library) is downloaded once and cached in `build/_deps/`.
+3. **CMake** generates build files, and **Ninja** compiles everything into `build/hub75_lvgl.uf2`.
+
+Steps 1 and 2 only take noticeable time on the **very first build**. After that, everything is cached and rebuilds are fast.
+
+> 📡 **You need an internet connection for the first build**, since LVGL is fetched from GitHub.
+
+---
+
+### Option A — Build from the Command Line (macOS / Linux)
+
+```bash
+git clone https://github.com/JuPfu/hub75_lvgl
+cd hub75_lvgl
+./build.sh
+```
+
+That's it. `build.sh` does the following for you:
+
+```bash
+rm -rf build      # start with a clean build directory
+mkdir build
+cd build
+
+cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release   # configure the project, fetch LVGL if needed
+ninja                                          # compile everything
+```
+
+While `cmake` runs for the first time, you'll see output showing LVGL being downloaded — this is normal and may take 1–2 minutes depending on your connection. Subsequent runs skip this step.
+
+When the build finishes successfully, you'll find the firmware here:
+
+```
+build/hub75_lvgl.uf2
+```
+
+#### Flashing the firmware
+
+Connect your Pico in BOOTSEL mode (hold the BOOTSEL button while plugging it in), then run:
+
+```bash
+picotool load -f -x ./build/hub75_lvgl.uf2
+```
+
+> 🐧 Not yet tested on Linux, but it should work the same way. If you try it, feedback is welcome!
+
+---
+
+### Option B — Build with VSCode
+
+If you'd rather use a graphical interface, VSCode with the **Raspberry Pi Pico extension** handles most of this for you.
+
+**1. Clone the repository**
+
+- Press `Ctrl+Shift+P` and select `Git: Clone`
+- Paste the URL: `https://github.com/JuPfu/hub75_lvgl`
+
+  <img src="assets/VSCode_1.png" width="460" height="116">
+
+- Choose a local directory to clone into
+
+  <img src="assets/VSCode_2.png" width="603" height="400">
+
+**2. Accept the project import prompt**
+
+When VSCode asks *"Do you want to import this project as Raspberry Pi Pico project?"*, click **Yes** (or just wait — it proceeds automatically after a few seconds).
+
+  <img src="assets/VSCode_3.png" width="603" height="400">
+
+**3. Configure Pico SDK settings**
+
+A settings page opens automatically. The default settings work fine for most setups.
+
+  <img src="assets/VSCode_4.png" width="603" height="400">
+
+- Click **Import** to finish setup
+- Switch the board type to match your Pico model (e.g. Pico, Pico 2)
+
+  <img src="assets/VSCode_5.png" width="599" height="415">
+
+**4. Wait for setup to complete**
+
+VSCode downloads the Pico SDK, toolchain, and extension dependencies. A status message ("Activating content...") shows this is in progress — this can take a few minutes the first time.
+
+**5. Connect your hardware**
+
+- Wire up the HUB75 LED matrix to your Pico
+- Plug the Pico into your computer via USB
+
+**6. Build and upload**
+
+Click the **Run** button in the bottom status bar.
+
+  <img src="assets/VSCode_6.png" width="600" height="416">
+
+> ⏳ **The first build takes longer** — LVGL is downloaded into `build/_deps/` during this step. You'll see progress messages in the **Output** panel (select the *CMake/Build* channel). Every build after that is much faster, since LVGL is already cached locally.
+
+If everything is wired up correctly, your LED matrix should light up with the demo animations! 🎉
+
+---
+
+### Troubleshooting the Build
+
+| Symptom | Likely cause / fix |
+|---|---|
+| First build hangs at "Activating content" | This is normal — LVGL is being downloaded. Check the **Output → CMake/Build** panel for progress. |
+| `fatal error: lvgl/...: No such file or directory` | LVGL include paths changed — make sure source files use `#include "lvgl.h"`. |
+| CMake errors about duplicate `lvgl` targets | Run `rm -rf build` and reconfigure — a stale `build/` directory can conflict with a fresh LVGL fetch. For VSCode create a new build directory before compiling again.|
+| Build seems stuck with no output | Try running from the command line (`./build.sh`) instead, where progress is more visible. |
+
+---
+
+## Integrating a Different LVGL Version
+
+Currently **LVGL v9.4.0** is integrated into the project. To switch to a different version:
+
+1. **Set the LVGL version** — edit the `LV_TAG` variable near the top of `CMakeLists.txt` (around line 49) to the tag 🏷️ of the version you want (e.g. `v9.5.0`). Valid tags are listed on the [LVGL Releases page](https://github.com/lvgl/lvgl/releases).
+
+2. **Update `lv_conf.h`** for the new version:
+   - After a build, copy `lv_conf_template.h` from `build/_deps/lvgl-src/` to the project's top-level directory
    - Rename it to `lv_conf.h`
-   - Modify it to match your needs (use this project as reference)
+   - Adjust settings to match your needs (use the existing `lv_conf.h` in this project as a reference)
 
-   Your directory structure should look similar to this
+3. **Rebuild** — run `./build.sh` again. The new LVGL version will be fetched automatically.
 
-   ```bash
-   assets
-   build
-   examples
-   src
-   utils
-   build.sh
-   CMakeLists.txt
-   hub75_lvgl.cpp
-   lv_conf.h
-   README.md
-   ```
+Your directory structure should look like this:
+
+```bash
+assets
+build
+examples
+src
+utils
+build.sh
+CMakeLists.txt
+hub75_lvgl.cpp
+lv_conf.h
+README.md
+```
+
 ---
 
 ## Connecting LVGL to the HUB75 Driver
@@ -93,7 +217,7 @@ uint32_t get_milliseconds_since_boot()
 
 ### 2. Display Flush Callback
 
-Connects LVGL's draw buffer to the HUB75 display. The parameter *area is not used as LGVL is directed to always pass the complete buffer of the display ([see Choose LV_DISPLAY_RENDER_MODE_FULL](#choose-lvdisplayrendermodefull)).
+Connects LVGL's draw buffer to the HUB75 display. The `area` parameter is not used, since LVGL is configured to always pass the complete display buffer (see [Choose LV_DISPLAY_RENDER_MODE_FULL](#3-choose-lv_display_render_mode_full)).
 
 ```c
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
@@ -107,7 +231,7 @@ void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 
 ### 3. Choose LV_DISPLAY_RENDER_MODE_FULL
 
-With `LV_DISPLAY_RENDER_MODE_DIRECT` the buffer size must match the size of the display. LVGL will render into the correct location of the buffer. Using this method the buffer always contain the whole display image.
+With `LV_DISPLAY_RENDER_MODE_FULL`, the buffer size must match the size of the display, and LVGL renders directly into the correct location of that buffer. The buffer therefore always contains the complete display image.
 
 ```c
     lv_init();
@@ -126,7 +250,7 @@ With `LV_DISPLAY_RENDER_MODE_DIRECT` the buffer size must match the size of the 
 
 ### 4. Periodic Timer Handler Call
 
-In your main loop, call `lv_timer_handler()`
+In your main loop, call `lv_timer_handler()`:
 
 ```c
 while (true)
@@ -152,80 +276,17 @@ while (true)
 
 ---
 
-## Demo Effects
+## Tested Hardware
 
-⚠️ The examples contained in hub75_lvgl.cpp have been tested with a Raspberry Pi Pico 2 microcontroller (RP2350). For a RP2040 processor you might have to comment out some demo effects due to minor memory capabilities. Ask if you need support 🙂.
+⚠️ The examples contained in `hub75_lvgl.cpp` have been tested with a Raspberry Pi Pico 2 (RP2350). On a Raspberry Pi Pico (RP2040), you may need to comment out some demo effects due to its more limited memory.
 
-## How to Use This Project in VSCode
-
-You can easily use this project with VSCode, especially with the **Raspberry Pi Pico plugin** installed. Follow these steps:
-
-1. **Open VSCode and start a new window**.
-2. **Clone the repository**:
-   - Press `Ctrl+Shift+P` and select `Git: Clone`.
-   - Paste the URL: `https://github.com/JuPfu/hub75_lvgl`
-
-      <img src="assets/VSCode_1.png" width="460" height="116">
-
-   - Choose a local directory to clone the repository into.
-
-      <img src="assets/VSCode_2.png" width="603" height="400">
-
-3. **Project Import Prompt**:
-   - Accept the prompt to open the project.
-
-      <img src="assets/VSCode_3.png" width="603" height="400">
-
-   - When prompted, "Do you want to import this project as Raspberry Pi Pico project?", click **Yes** or wait a few seconds until the dialog prompt disappears by itself.
-
-4. **Configure Pico SDK Settings**:
-   - A settings page will open automatically.
-   - Use the default settings unless you have a specific setup.
-
-      <img src="assets/VSCode_4.png" width="603" height="400">
-
-   - Click **Import** to finalize project setup.
-   - Switch the board-type to your Pico model.
-
-      <img src="assets/VSCode_5.png" width="599" height="415">
-
-5. **Wait for Setup Completion**:
-   - VSCode will download required tools, the Pico SDK, and any plugins.
-
-6. **Connect the Hardware**:
-   - Make sure the HUB75 LED matrix is properly connected to the Raspberry Pi Pico.
-   - Attach the Raspberry Pi Pico USB cable to your computer
-
-7. **Build and Upload**:
-   - Compiling the project can be done without a Pico attached to the computer.
-  
-     ⚠️ The first build will take a little bit longer as LVGL is downloaded into the build/_deps folder
-
-      <img src="assets/VSCode_6.png" width="600" height="416">
-
-   - Click the **Run** button in the bottom taskbar.
-   - VSCode will compile and upload the firmware to your Pico board.
-
-> 💡 If everything is set up correctly, your matrix should come to life with the updated HUB75 DMA driver.
-
----
-
-## How to Build this Project from the Command Line
-
-For **MacOS** open a terminal window and execute the following commands:
-
-```bash
-git clone https://github.com/JuPfu/hub75_lvgl
-cd hub75_lvgl
-./build.sh
-```
-This hasn't been tested on **Linux** yet, but it might work there as well. 🤞
+Ask if you need support 🙂
 
 ---
 
 ## Next Steps
 
-- **Add some more graphics examples** to explore the capabilities of LVGL on Pico.
+- **Add more graphics examples** to explore the capabilities of LVGL on Pico.
 
 ## Support
 
