@@ -165,11 +165,12 @@ target_compile_definitions(hub75_lvgl PRIVATE
     PANEL_TYPE=PANEL_RUL6024    # select PANEL_TYPE
     INVERTED_STB=false          # inverted pin signal for OE (untested)
     SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
-    BITPLANES=8                 # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
+    BITPLANES=10                 # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
     BALANCED_LIGHT_OUTPUT=false # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
     SEPARATE_CIE_CHANNELS=false # use separate CIE channels for improved colour representation - needs more memory
     CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
     CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
+    DISPLAY_ROTATION=180          # display rotation - valid values 0, 90, 180, 270 
     BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
     BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
     BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
