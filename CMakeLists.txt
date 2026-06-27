@@ -52,7 +52,7 @@ message(STATUS "")
 add_executable(${PROJECT_NAME} hub75_lvgl.cpp)
 
 pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
-pico_set_program_version(${PROJECT_NAME} "3.3")
+pico_set_program_version(${PROJECT_NAME} "3.4.0")
 
 # ── Step 2 — Fetch LVGL ───────────────────────────────────────────────────────
 set(LV_TAG v9.4.0)
