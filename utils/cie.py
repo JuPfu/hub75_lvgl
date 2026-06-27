@@ -6,7 +6,7 @@ TABLE_SIZE = 256
 # Adjust these based on your specific panel's look
 # Usually Green is brightest, so we might pull it back to 0.9
 # Blue often needs to be stronger (1.0), Red around 0.8-0.9
-RED_CAP = 0.988
+RED_CAP = 0.9880
 GREEN_CAP = 1.00
 BLUE_CAP = 1.00
 
