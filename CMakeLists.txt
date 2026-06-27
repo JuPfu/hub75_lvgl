@@ -85,14 +85,6 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
-FetchContent_Declare(
-    hub75
-    GIT_REPOSITORY https://github.com/JuPfu/hub75.git
-    GIT_TAG        main
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-
 string(TIMESTAMP _fetch_start "%s")
 FetchContent_MakeAvailable(lvgl)
 string(TIMESTAMP _fetch_end "%s")
@@ -103,6 +95,14 @@ message(STATUS "Step 2/4 — LVGL ✓  (${_fetch_elapsed}s)")
 message(STATUS "           Source : ${lvgl_SOURCE_DIR}")
 message(STATUS "           Config : ${LV_CONF_PATH}")
 message(STATUS "")
+
+FetchContent_Declare(
+    hub75
+    GIT_REPOSITORY https://github.com/JuPfu/hub75.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+)
 
 string(TIMESTAMP _fetch_start "%s")
 FetchContent_Populate(hub75)
@@ -115,7 +115,7 @@ message(STATUS "           Source : ${hub75_SOURCE_DIR}")
 message(STATUS "           Config : ${HUB75_INCLUDE_DIR}")
 message(STATUS "")
 
-
+# Use cie.py to generate cie.hpp
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(CIE_HPP ${hub75_SOURCE_DIR}/include/cie.hpp)
