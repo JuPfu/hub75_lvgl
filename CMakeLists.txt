@@ -70,7 +70,7 @@ cmake_policy(SET CMP0169 OLD)
 # Show git clone progress in the Output panel
 set(FETCHCONTENT_QUIET OFF CACHE BOOL "" FORCE)
 
-# Tell LVGL where lv_conf.h lives — must be set BEFORE FetchContent_MakeAvailable
+# Tell LVGL where lv_conf.h lives — must be set before FetchContent_MakeAvailable
 set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h CACHE STRING "" FORCE)
 
 # Disable demos and examples — not needed on embedded target, saves flash/RAM
@@ -115,7 +115,7 @@ message(STATUS "           Source : ${hub75_SOURCE_DIR}")
 message(STATUS "           Config : ${HUB75_INCLUDE_DIR}")
 message(STATUS "")
 
-# Use cie.py to generate cie.hpp
+# Use local cie.py to generate cie.hpp
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(CIE_HPP ${hub75_SOURCE_DIR}/include/cie.hpp)
@@ -166,11 +166,11 @@ target_compile_definitions(hub75_lvgl PRIVATE
     INVERTED_STB=false          # inverted pin signal for OE (untested)
     SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
     BITPLANES=10                 # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
-    BALANCED_LIGHT_OUTPUT=false # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
-    SEPARATE_CIE_CHANNELS=false # use separate CIE channels for improved colour representation - needs more memory
+    BALANCED_LIGHT_OUTPUT=true # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
+    SEPARATE_CIE_CHANNELS=true # use separate CIE channels for improved colour representation - needs more memory
     CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
     CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
-    DISPLAY_ROTATION=180          # display rotation - valid values 0, 90, 180, 270 
+    DISPLAY_ROTATION=0          # display rotation - valid values 0, 90, 180, 270 
     BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
     BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
     BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
@@ -221,9 +221,8 @@ pico_add_extra_outputs(${PROJECT_NAME})
 
 message(STATUS "Step 4/4 — Targets configured ✓")
 message(STATUS "")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "  Configuration complete.")
-message(STATUS "  Press Build (Ctrl+Shift+B) or click the")
-message(STATUS "  build button in the status bar.")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "  Press Build (Ctrl+Shift+B) or click the build button in the status bar.")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "")
