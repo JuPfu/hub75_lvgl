@@ -55,7 +55,10 @@ pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
 pico_set_program_version(${PROJECT_NAME} "3.4.0")
 
 # ── Step 2 — Fetch LVGL ───────────────────────────────────────────────────────
-set(LV_TAG v9.4.0)
+
+# Set LV_TAG to the LVGL version you want to use
+# Do not forget to configure lv_conf.h!!! See README.md for details. 
+set(LV_TAG v9.5.0)
 
 message(STATUS "Step 2/4 — Fetching LVGL ${LV_TAG} from GitHub...")
 message(STATUS "           First clone may take 1-2 minutes.")
@@ -96,10 +99,15 @@ message(STATUS "           Source : ${lvgl_SOURCE_DIR}")
 message(STATUS "           Config : ${LV_CONF_PATH}")
 message(STATUS "")
 
+# Specify a tag from the hub75 project to fall back to a specific version
+# set(HUB75_TAG v4.0.0)
+# Set HUB75_TAG to main to compile with the latest version
+set(HUB75_TAG main)
+
 FetchContent_Declare(
     hub75
     GIT_REPOSITORY https://github.com/JuPfu/hub75.git
-    GIT_TAG        main
+    GIT_TAG        ${HUB75_TAG}
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
 )
@@ -152,8 +160,8 @@ target_compile_definitions(hub75_lvgl PRIVATE
     MATRIX_PANEL_WIDTH=64       # your matrix panel width
     MATRIX_PANEL_HEIGHT=64      # your matrix panel height
     CHAIN_MODE=CHAIN_MODE_SERPENTINE # set chain-mode - default is serpentine (U-Turn with compensation for 180° rotation)
-    CHAIN_COLS=2                # number of panels chained left-to-right in a single chain row (columns)
-    CHAIN_ROWS=1                # number of chain rows stacked vertically (rows)
+    CHAIN_COLS=1                # number of panels chained left-to-right in a single chain row (columns)
+    CHAIN_ROWS=2                # number of chain rows stacked vertically (rows)
     DATA_BASE_PIN=30            # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
     DATA_N_PINS=6               # number (count) of colour pins (usually 6)
     ROWSEL_BASE_PIN=36          # base GPIO address pin (aka start index) of A, B (, C, D. E) GPIO pins - use 36 for PICO_RP2350B
@@ -170,7 +178,7 @@ target_compile_definitions(hub75_lvgl PRIVATE
     SEPARATE_CIE_CHANNELS=true # use separate CIE channels for improved colour representation - needs more memory
     CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
     CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
-    DISPLAY_ROTATION=0          # display rotation - valid values 0, 90, 180, 270 
+    DISPLAY_ROTATION=270          # display rotation - valid values 0, 90, 180, 270 
     BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
     BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
     BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
