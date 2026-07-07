@@ -1,3 +1,0 @@
-/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/hub75-populate.dir
-/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/edit_cache.dir
-/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/rebuild_cache.dir
