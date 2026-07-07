@@ -23,214 +23,165 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-
-# set(PICO_BOARD pico2 CACHE STRING "Board type")
+# As far as I know the Raspberry Pi Pico plugin for VSCode does not (yet) support bare RP2350 microcontrollers without a board.
+# To adapt the C-SDK for a standard Pico board configure this CMakeLists.txt file via the Raspberry Pi Pico plugin's "Switch Board" option.
+set(PICO_BOARD pico2_w CACHE STRING "Board type")
 
 # Uncomment the following two lines to compile for bare RP2350 without a board
-set(PICO_PLATFORM rp2350)
-set(PICO_BOARD none CACHE STRING "Board type")
+# set(PICO_PLATFORM rp2350)
+# set(PICO_BOARD none CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(hub75_lvgl C CXX ASM)
+project(demo C CXX ASM)
 
-# ── Banner ────────────────────────────────────────────────────────────────────
-message(STATUS "")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "  hub75_lvgl — CMake configuration")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "")
-
-# ── Step 1 — Pico SDK ─────────────────────────────────────────────────────────
-message(STATUS "Step 1/4 — Initialising Pico SDK...")
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
-message(STATUS "Step 1/4 — Pico SDK ✓  (${PICO_SDK_VERSION_STRING})")
-message(STATUS "")
 
-add_executable(${PROJECT_NAME} hub75_lvgl.cpp)
+# Add executable. Default name is the project name
+add_executable(${PROJECT_NAME}
+    src/hub75_lvgl.cpp
+)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    # Nothing here yet. See further below for more library settings.
+)
+
+set(HUB75_SUPPORT true) # Enable the HUB75 library
+set(LVGL_SUPPORT true)  # Enable LVGL support
+
+add_subdirectory(libraries)
+# add_subdirectory(utils)
 
 pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
-pico_set_program_version(${PROJECT_NAME} "3.4.0")
-
-# ── Step 2 — Fetch LVGL ───────────────────────────────────────────────────────
-
-# Set LV_TAG to the LVGL version you want to use
-# Do not forget to configure lv_conf.h!!! See README.md for details. 
-set(LV_TAG v9.5.0)
-
-message(STATUS "Step 2/4 — Fetching LVGL ${LV_TAG} from GitHub...")
-message(STATUS "           First clone may take 1-2 minutes.")
-message(STATUS "           Subsequent builds use the local cache instantly.")
-message(STATUS "")
-
-include(FetchContent)
-
-# Allow FetchContent_Populate() without deprecation warning
-cmake_policy(SET CMP0169 OLD)
-
-# Show git clone progress in the Output panel
-set(FETCHCONTENT_QUIET OFF CACHE BOOL "" FORCE)
-
-# Tell LVGL where lv_conf.h lives — must be set before FetchContent_MakeAvailable
-set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h CACHE STRING "" FORCE)
-
-# Disable demos and examples — not needed on embedded target, saves flash/RAM
-set(LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(LV_BUILD_DEMOS    OFF CACHE BOOL "" FORCE)
-
-FetchContent_Declare(
-    lvgl
-    GIT_REPOSITORY https://github.com/lvgl/lvgl.git
-    GIT_TAG        ${LV_TAG}
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-
-string(TIMESTAMP _fetch_start "%s")
-FetchContent_MakeAvailable(lvgl)
-string(TIMESTAMP _fetch_end "%s")
-math(EXPR _fetch_elapsed "${_fetch_end} - ${_fetch_start}")
-
-message(STATUS "")
-message(STATUS "Step 2/4 — LVGL ✓  (${_fetch_elapsed}s)")
-message(STATUS "           Source : ${lvgl_SOURCE_DIR}")
-message(STATUS "           Config : ${LV_CONF_PATH}")
-message(STATUS "")
-
-# Specify a tag from the hub75 project to fall back to a specific version
-# set(HUB75_TAG v4.0.0)
-# Set HUB75_TAG to main to compile with the latest version
-set(HUB75_TAG main)
-
-FetchContent_Declare(
-    hub75
-    GIT_REPOSITORY https://github.com/JuPfu/hub75.git
-    GIT_TAG        ${HUB75_TAG}
-    GIT_SHALLOW    TRUE
-    GIT_PROGRESS   TRUE
-)
-
-string(TIMESTAMP _fetch_start "%s")
-FetchContent_Populate(hub75)
-string(TIMESTAMP _fetch_end "%s")
-math(EXPR _fetch_elapsed "${_fetch_end} - ${_fetch_start}")
-
-message(STATUS "")
-message(STATUS "Step 3/4 — Hub75 ✓  (${_fetch_elapsed}s)")
-message(STATUS "           Source : ${hub75_SOURCE_DIR}")
-message(STATUS "           Config : ${HUB75_INCLUDE_DIR}")
-message(STATUS "")
-
-# Use local cie.py to generate cie.hpp
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
-
-set(CIE_HPP ${hub75_SOURCE_DIR}/include/cie.hpp)
-
-add_custom_command(
-    OUTPUT  ${CIE_HPP}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/utils/cie.py > ${CIE_HPP}
-    DEPENDS ${CMAKE_CURRENT_LIST_DIR}/utils/cie.py
-    COMMENT "Generating cie.hpp from cie.py"
-    VERBATIM
-)
-
-add_custom_target(generate_cie_hpp DEPENDS ${CIE_HPP})
-add_dependencies(${PROJECT_NAME} generate_cie_hpp)
-
-# ── Step 3 — Configure targets ────────────────────────────────────────────────
-message(STATUS "Step 4/4 — Configuring targets...")
-
-set(PANEL_GENERIC 0)
-set(PANEL_FM6126A 1)
-set(PANEL_RUL6024 2)
-
-set(CHAIN_MODE_SERPENTINE 0)
-set(CHAIN_MODE_RASTER 1)
-
-# No need to modify preprocessor defines in hub75.cpp - instead set their values here.
-#
-# Example:
-# Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
-# Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
-target_compile_definitions(hub75_lvgl PRIVATE
-    PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
-    USE_PICO_GRAPHICS=false     # set to false if you use hub75 as a library - any reference to pico_graphics is removed
-    MATRIX_PANEL_WIDTH=64       # your matrix panel width
-    MATRIX_PANEL_HEIGHT=64      # your matrix panel height
-    CHAIN_MODE=CHAIN_MODE_SERPENTINE # set chain-mode - default is serpentine (U-Turn with compensation for 180° rotation)
-    CHAIN_COLS=1                # number of panels chained left-to-right in a single chain row (columns)
-    CHAIN_ROWS=2                # number of chain rows stacked vertically (rows)
-    DATA_BASE_PIN=30            # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
-    DATA_N_PINS=6               # number (count) of colour pins (usually 6)
-    ROWSEL_BASE_PIN=36          # base GPIO address pin (aka start index) of A, B (, C, D. E) GPIO pins - use 36 for PICO_RP2350B
-    ROWSEL_N_PINS=5             # number (count) of address pins available on your matrix panel board (look at your panels connector)
-    CLK_PIN=41                  # GPIO pin for CLK - use pin 41 for PICO_RP2350B
-    STROBE_PIN=42               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
-    OEN_PIN=43                  # GPIO for OE pin - use pin 43 for PICO_RP2350B
-    HUB75=1                     # 
-    PANEL_TYPE=PANEL_RUL6024    # select PANEL_TYPE
-    INVERTED_STB=false          # inverted pin signal for OE (untested)
-    SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
-    BITPLANES=10                 # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
-    BALANCED_LIGHT_OUTPUT=true # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
-    SEPARATE_CIE_CHANNELS=true # use separate CIE channels for improved colour representation - needs more memory
-    CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
-    CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
-    DISPLAY_ROTATION=270          # display rotation - valid values 0, 90, 180, 270 
-    BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
-    BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
-    BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
-    HUB75_MULTICORE=true        # use core1 for the hub75 driver
-    FRAME_RATE=true             # for testing and debugging purpose only: output frame rate information (printf) in monitor - set to `false` for production
-)
+pico_set_program_version(${PROJECT_NAME} "0.1")
+pico_set_float_implementation(${PROJECT_NAME} pico)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
-pico_enable_stdio_usb(${PROJECT_NAME}  1)
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
 
-# Generate PIO header
-pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio)
 
-target_sources(${PROJECT_NAME} PRIVATE
-    ${hub75_SOURCE_DIR}/src/hub75.cpp
-    ${hub75_SOURCE_DIR}/src/fm6126a.cpp
-    ${hub75_SOURCE_DIR}/src/rul6024.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/examples/bouncing_balls.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/examples/fire_effect.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/examples/colour_check.cpp
-)
+if(HUB75_SUPPORT)
+    # No need to modify preprocessor defines in hub75.cpp - instead set their values here.
+    #
+    # Example:
+    # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
+    # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
+    target_compile_definitions(hub75 PUBLIC
+        HUB75_SUPPORT=true
+        # PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
+        USE_PICO_GRAPHICS=false      # set to false if you use hub75 as a library - any reference to pico_graphics is removed
+        MATRIX_PANEL_WIDTH=64       # your matrix panel width
+        MATRIX_PANEL_HEIGHT=32      # your matrix panel height
+        CHAIN_MODE=CHAIN_MODE_SERPENTINE # set chain-mode - default is serpentine (U-Turn with compensation for 180° rotation)
+        CHAIN_COLS=1                # number of panels chained left-to-right in a single chain row (columns)
+        CHAIN_ROWS=3                # number of chain rows stacked vertically (rows)
+        DATA_BASE_PIN=0             # base GPIO pin (aka start index) of R0, G0, B0, R1, G1, B1 GPIO pins - use 30 for PICO_RP2350B
+        DATA_N_PINS=6               # number (count) of colour pins (usually 6)
+        ROWSEL_BASE_PIN=6           # base GPIO address pin (aka start index) of A, B (, C, D. E) GPIO pins - use 36 for PICO_RP2350B
+        ROWSEL_N_PINS=3             # number (count) of address pins available on your matrix panel board (look at your panels connector)
+        CLK_PIN=11                  # GPIO pin for CLK - use pin 41 for PICO_RP2350B
+        STROBE_PIN=12               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
+        OEN_PIN=13                  # GPIO pin for OE pin - use pin 43 for PICO_RP2350B
+        HUB75_P3_1415_16S_64X64_S31                 #
+        PANEL_TYPE=PANEL_GENERIC    # select PANEL_TYPE
+        INVERTED_STB=false          # inverted pin signal for OE (untested)
+        SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
+        BITPLANES=10                # number (count) of bit-planes used for BCM (Binary Code Modulation) - valid values for BIT_DEPTH are 8 or 10
+        BALANCED_LIGHT_OUTPUT=true  # allthough it uses some more memory it improves effective refresh rate and really cuts down flicker
+        SEPARATE_CIE_CHANNELS=true  # use separate CIE channels for improved colour representation - needs more memory
+        CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
+        CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
+        BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
+        BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
+        BASE_OE_NS=40               # wait time in nano-seconds to stabilise row addressing
+        HUB75_MULTICORE=true        # use core1 for the hub75 driver
+        FRAME_RATE=true            # for testing and debugging purpose only: output frame rate information (printf) in monitor - set to `false` for production
+    )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}           # lv_conf.h
-    ${hub75_SOURCE_DIR}/src             # hub75.pio.h (generated), hub75.cpp internals
-    ${hub75_SOURCE_DIR}/include         # hub75.hpp  ← add this
-    ${CMAKE_CURRENT_LIST_DIR}/examples
-    ${lvgl_SOURCE_DIR}                  # resolves "lvgl/src/..." style includes
-)
+    target_link_libraries(${PROJECT_NAME}
+        hardware_pio
+        hardware_dma
+        hub75
 
-# Add any user requested libraries
-target_link_libraries(${PROJECT_NAME}
-    pico_stdlib
-    pico_multicore
-    hardware_pio
-    hardware_dma
-    hardware_timer
-    lvgl
-)
+    )
+endif()
 
+
+# Link wifi support if available and set wifi credentials from environment variables
 if(PICO_CYW43_SUPPORTED)
-    target_link_libraries(${PROJECT_NAME} pico_cyw43_arch_none)
+
+    target_compile_definitions(${PROJECT_NAME} PUBLIC
+        CYW43_PIO_CLOCK_DIV_DYNAMIC=true
+    )
+
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/fota.cpp
+        src/network.cpp
+    )
+
+    target_link_libraries(${PROJECT_NAME}
+        pico_cyw43_arch_lwip_threadsafe_background
+    )
+
+#    pico_use_wifi_firmware_partition(${PROJECT_NAME})
+
+    if(DEFINED ENV{WIFI_SSID})
+        target_compile_definitions(${PROJECT_NAME} PRIVATE WIFI_SSID="$ENV{WIFI_SSID}")
+    else()
+        message(FATAL_ERROR "WIFI_SSID environment variable is not set!")
+    endif()
+    if(DEFINED ENV{WIFI_PASSWORD})
+        target_compile_definitions(${PROJECT_NAME} PRIVATE WIFI_PASSWORD="$ENV{WIFI_PASSWORD}")
+    else()
+        message(FATAL_ERROR "WIFI_PASSWORD environment variable is not set!")
+    endif()
+endif()
+
+
+if(LVGL_SUPPORT)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC
+        LVGL_SUPPORT=true
+        LV_CONF_PATH="${CMAKE_SOURCE_DIR}/lv_conf.h"
+    )
+
+    target_sources(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src/hub75_lvgl.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/bouncing_balls.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/colour_check.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/examples/fire_effect.cpp
+    )
+
+    target_link_libraries(${PROJECT_NAME}
+        lvgl
+    )
+endif()
+
+
+# Add the standard library to the build
+target_link_libraries(${PROJECT_NAME}
+        pico_stdlib
+        pico_multicore
+        pico_aon_timer
+        pico_sha256
+        hardware_vreg
+)
+
+# Add the standard include files to the build
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}/examples
+        ${CMAKE_SOURCE_DIR}
+)
+
+pico_hash_binary(${PROJECT_NAME})
+if(EXISTS ${PRIVATE_SIGNING_KEY})
+    message(STATUS "Using key file ${PRIVATE_SIGNING_KEY} to sign the firmware image.")
+    pico_sign_binary(${PROJECT_NAME} ${PRIVATE_SIGNING_KEY})
+else()
+    message(STATUS "Missing private key file ${PRIVATE_SIGNING_KEY}. The firmware will NOT be signed.")
 endif()
 
 pico_add_extra_outputs(${PROJECT_NAME})
-
-message(STATUS "Step 4/4 — Targets configured ✓")
-message(STATUS "")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "  Configuration complete.")
-message(STATUS "  Press Build (Ctrl+Shift+B) or click the build button in the status bar.")
-message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "")
