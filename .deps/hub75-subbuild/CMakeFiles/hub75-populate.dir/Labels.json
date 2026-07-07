@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/hub75-populate"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/hub75-populate.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/CMakeFiles/hub75-populate-complete.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-build.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-configure.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-download.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-install.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-mkdir.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-patch.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-test.rule"
+		},
+		{
+			"file" : "/Users/jp/Pico/ws/hub75_lvgl/.deps/hub75-subbuild/hub75-populate-prefix/src/hub75-populate-stamp/hub75-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"hub75-populate"
+		],
+		"name" : "hub75-populate"
+	}
+}

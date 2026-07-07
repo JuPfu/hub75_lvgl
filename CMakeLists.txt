@@ -73,6 +73,20 @@ cmake_policy(SET CMP0169 OLD)
 # Show git clone progress in the Output panel
 set(FETCHCONTENT_QUIET OFF CACHE BOOL "" FORCE)
 
+# Clone LVGL/hub75 into a persistent ".deps" folder OUTSIDE the build tree.
+# This means deleting build/ for a clean build no longer forces a full
+# re-clone of both dependencies from GitHub.
+set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/.deps CACHE PATH
+    "Location for FetchContent sources (kept outside build/ on purpose)" FORCE)
+
+# Pass -DHUB75_LVGL_FRESH_DEPS=ON to wipe the dependency cache and re-fetch
+# LVGL/hub75 from scratch (e.g. after pinning a new HUB75_TAG/LV_TAG).
+option(HUB75_LVGL_FRESH_DEPS "Wipe cached FetchContent sources in .deps and re-fetch from scratch" OFF)
+if(HUB75_LVGL_FRESH_DEPS)
+    message(STATUS "HUB75_LVGL_FRESH_DEPS=ON — removing ${FETCHCONTENT_BASE_DIR}")
+    file(REMOVE_RECURSE ${FETCHCONTENT_BASE_DIR})
+endif()
+
 # Tell LVGL where lv_conf.h lives — must be set before FetchContent_MakeAvailable
 set(LV_CONF_PATH ${CMAKE_CURRENT_LIST_DIR}/lv_conf.h CACHE STRING "" FORCE)
 
@@ -102,6 +116,8 @@ message(STATUS "")
 # Specify a tag from the hub75 project to fall back to a specific version
 # set(HUB75_TAG v4.0.0)
 # Set HUB75_TAG to main to compile with the latest version
+# NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR). 
+# Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
 set(HUB75_TAG main)
 
 FetchContent_Declare(
@@ -169,7 +185,7 @@ target_compile_definitions(hub75_lvgl PRIVATE
     CLK_PIN=41                  # GPIO pin for CLK - use pin 41 for PICO_RP2350B
     STROBE_PIN=42               # GPIO pin for STROBE (LATCH) - use pin 42 for PICO_RP2350B
     OEN_PIN=43                  # GPIO for OE pin - use pin 43 for PICO_RP2350B
-    HUB75=1                     # 
+    PANEL=HUB75_DEFAULT         #
     PANEL_TYPE=PANEL_RUL6024    # select PANEL_TYPE
     INVERTED_STB=false          # inverted pin signal for OE (untested)
     SM_CLOCKDIV_FACTOR=1.0f     # to prevent flicker or ghosting it might be worth a try to reduce state machine speed
@@ -178,7 +194,7 @@ target_compile_definitions(hub75_lvgl PRIVATE
     SEPARATE_CIE_CHANNELS=true # use separate CIE channels for improved colour representation - needs more memory
     CCM_RG_SHIFT=6              # CCM Cross-channel mixing - mix ~1.6% green into the red channel
     CCM_GB_SHIFT=7              # CCM Cross-channel mixing - mix ~0.8% blue into the green channel
-    DISPLAY_ROTATION=270          # display rotation - valid values 0, 90, 180, 270 
+    DISPLAY_ROTATION=0          # display rotation - valid values 0, 90, 180, 270 
     BASE_LATCH_NS=80            # wait time in nano-seconds to stabilise latch
     BASE_ADDR_NS=120            # wait time in nano-seconds to stabilise row addressing
     BASE_OE_NS=40               # pre-Oe guard wait time in nano-seconds (prevents ghost flashes)
