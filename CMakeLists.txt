@@ -136,7 +136,7 @@ math(EXPR _fetch_elapsed "${_fetch_end} - ${_fetch_start}")
 message(STATUS "")
 message(STATUS "Step 3/4 — Hub75 ✓  (${_fetch_elapsed}s)")
 message(STATUS "           Source : ${hub75_SOURCE_DIR}")
-message(STATUS "           Config : ${HUB75_INCLUDE_DIR}")
+message(STATUS "           Include : ${hub75_SOURCE_DIR}/include")
 message(STATUS "")
 
 # Use local cie.py to generate cie.hpp
