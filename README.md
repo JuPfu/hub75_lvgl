@@ -56,21 +56,32 @@ The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up *
 
 This section walks through everything needed to go from a fresh clone to a flashable `.uf2` file — whether you prefer the command line or VSCode.
 
+This project depends on **two** external libraries, both fetched automatically at configure time — you don't need to install or clone either yourself:
+
+- **[LVGL](https://github.com/lvgl/lvgl)** — the graphics library, version pinned by `LV_TAG` in `CMakeLists.txt`.
+- **[hub75](https://github.com/JuPfu/hub75)** — the underlying HUB75 LED matrix driver this project builds on, version pinned by `HUB75_TAG` in `CMakeLists.txt`.
+
 ### What happens during a build (in plain words)
 
-Building this project involves three things that happen automatically, so you normally don't need to set anything up by hand:
+Building this project involves four things that happen automatically, so you normally don't need to set anything up by hand:
 
 1. **The Raspberry Pi Pico SDK** is located (or downloaded if missing).
-2. **LVGL** (the graphics library) is downloaded once and cached in `build/_deps/`.
-3. **CMake** generates build files, and **Ninja** compiles everything into `build/hub75_lvgl.uf2`.
+2. **LVGL** is downloaded once and cached.
+3. **hub75** is downloaded once and cached. Its `cie.py` utility also runs once to generate `cie.hpp` (the colour-correction lookup table used by the driver).
+4. **CMake** generates build files, and **Ninja** compiles everything into `build/hub75_lvgl.uf2`.
 
-Steps 1 and 2 only take noticeable time on the **very first build**. After that, everything is cached and rebuilds are fast.
+Steps 1–3 only take noticeable time on the **very first build**. LVGL and hub75 are both cached in a persistent `.deps/` folder that lives *outside* `build/`, so deleting `build/` for a clean rebuild does **not** force either dependency to be re-cloned from GitHub — only deleting `.deps/` does that.
 
-> 📡 **You need an internet connection for the first build**, since LVGL is fetched from GitHub.
+> 📡 **You need an internet connection for the first build**, since both LVGL and hub75 are fetched from GitHub.
+
+Two ways to build the project are available:
+
+- **Option A** — the `build.sh` script (command line), which also exposes a couple of extra configuration options for managing the build and dependency cache.
+- **Option B** — VSCode with the Raspberry Pi Pico extension, as before.
 
 ---
 
-### Option A — Build from the Command Line (macOS / Linux)
+### Option A — Build from the Command Line (macOS / Linux) using `build.sh`
 
 ```bash
 git clone https://github.com/JuPfu/hub75_lvgl
@@ -78,18 +89,22 @@ cd hub75_lvgl
 ./build.sh
 ```
 
-That's it. `build.sh` does the following for you:
+`build.sh` wraps the CMake/Ninja invocation and lets you decide how to handle an existing build or dependency cache, rather than always wiping everything:
+
+| Flag | Effect |
+|---|---|
+| *(none)* | Reuses an existing `build/` directory if present, or creates one if it doesn't exist. Prompts before removing anything. |
+| `-f`, `--fresh` | Removes `build/` before configuring. You'll then be asked whether to also clear `.deps/` (this forces a full re-clone of LVGL **and** hub75 — only do this if you actually need the latest sources or suspect a stale cache). |
+| `-h`, `--help` | Shows usage. |
+
+Under the hood, once those decisions are made, it runs:
 
 ```bash
-rm -rf build      # start with a clean build directory
-mkdir build
-cd build
-
-cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release   # configure the project, fetch LVGL if needed
-ninja                                          # compile everything
+cmake -S . -B build -G Ninja   # configure the project, fetch LVGL & hub75 if needed
+cmake --build build -j<ncpu>   # compile everything, using all available CPU cores
 ```
 
-While `cmake` runs for the first time, you'll see output showing LVGL being downloaded — this is normal and may take 1–2 minutes depending on your connection. Subsequent runs skip this step.
+While `cmake` runs for the first time, you'll see output showing LVGL and hub75 being downloaded — this is normal and may take 1–2 minutes depending on your connection. Subsequent runs skip this step entirely, even after wiping `build/`, since the sources live separately in `.deps/`.
 
 When the build finishes successfully, you'll find the firmware here:
 
@@ -111,7 +126,7 @@ picotool load -f -x ./build/hub75_lvgl.uf2
 
 ### Option B — Build with VSCode
 
-If you'd rather use a graphical interface, VSCode with the **Raspberry Pi Pico extension** handles most of this for you.
+If you'd rather use a graphical interface, VSCode with the **Raspberry Pi Pico extension** handles most of this for you — including fetching both LVGL and hub75. There's nothing extra to configure compared to Option A; the same two dependencies are fetched behind the scenes.
 
 **1. Clone the repository**
 
@@ -156,7 +171,7 @@ Click the **Run** button in the bottom status bar.
 
   <img src="assets/VSCode_6.png" width="600" height="416">
 
-> ⏳ **The first build takes longer** — LVGL is downloaded into `build/_deps/` during this step. You'll see progress messages in the **Output** panel (select the *CMake/Build* channel). Every build after that is much faster, since LVGL is already cached locally.
+> ⏳ **The first build takes longer** — LVGL and hub75 are both downloaded during this step. You'll see progress messages in the **Output** panel (select the *CMake/Build* channel). Every build after that is much faster, since both are already cached locally in `.deps/`.
 
 If everything is wired up correctly, your LED matrix should light up with the demo animations! 🎉
 
@@ -166,29 +181,55 @@ If everything is wired up correctly, your LED matrix should light up with the de
 
 | Symptom | Likely cause / fix |
 |---|---|
-| First build hangs at "Activating content" | This is normal — LVGL is being downloaded. Check the **Output → CMake/Build** panel for progress. |
+| First build hangs at "Activating content" | This is normal — LVGL and hub75 are being downloaded. Check the **Output → CMake/Build** panel for progress. |
 | `fatal error: lvgl/...: No such file or directory` | LVGL include paths changed — make sure source files use `#include "lvgl.h"`. |
-| CMake errors about duplicate `lvgl` targets | Run `rm -rf build` and reconfigure — a stale `build/` directory can conflict with a fresh LVGL fetch. For VSCode manualy create a new build directory before compiling again.|
+| `fatal error: hub75.hpp: No such file or directory` | hub75 wasn't fetched or populated correctly. Run `./build.sh --fresh` and clear `.deps/` when prompted to force a re-fetch. |
+| CMake errors about duplicate `lvgl` targets | Run `./build.sh --fresh` and reconfigure — a stale `build/` directory can conflict with a fresh LVGL fetch. For VSCode manualy create a new build directory before compiling again. |
+| Build suddenly breaks after a `git pull`, with no local changes | `HUB75_TAG` tracks hub75's `main` branch by default, so an upstream change there can affect this project without warning. Pin `HUB75_TAG` to a known-good tag or commit if you need a stable build (see [Switching the hub75 version](#switching-the-hub75-version)). |
 | Build seems stuck with no output | Try running from the command line (`./build.sh`) instead, where progress is more visible. |
 
 ---
 
-## Integrating a Different LVGL Version
+## Integrating a Different LVGL or Hub75 Version
 
-Currently **LVGL v9.4.0** is integrated into the project. To switch to a different version:
+Both dependencies are fetched via CMake's `FetchContent`, and each has its own version pin near the top of `CMakeLists.txt`.
 
-1. **Set the LVGL version** — edit the `LV_TAG` variable near the top of `CMakeLists.txt` (around line 49) to the tag 🏷️ of the version you want (e.g. `v9.5.0`). Valid tags are listed on the [LVGL Releases page](https://github.com/lvgl/lvgl/releases).
+### Switching the LVGL version
+
+Currently **LVGL v9.5.0** is integrated into the project. To switch to a different version:
+
+1. **Set the LVGL version** — edit the `LV_TAG` variable in `CMakeLists.txt` to the tag 🏷️ of the version you want (e.g. `v9.4.0`). Valid tags are listed on the [LVGL Releases page](https://github.com/lvgl/lvgl/releases).
 
 2. **Update `lv_conf.h`** for the new version:
-   - After a build, copy `lv_conf_template.h` from `build/_deps/lvgl-src/` to the project's top-level directory
+   - After a build, copy `lv_conf_template.h` from `.deps/lvgl-src/` to the project's top-level directory
    - Rename it to `lv_conf.h`
    - Adjust settings to match your needs (use the existing `lv_conf.h` in this project as a reference)
 
 3. **Rebuild** — run `./build.sh` again. The new LVGL version will be fetched automatically.
 
+### Switching the hub75 version
+
+The LED matrix driver itself lives in its own repository, [hub75](https://github.com/JuPfu/hub75), and is pinned independently of LVGL via the `HUB75_TAG` variable in `CMakeLists.txt`:
+
+```cmake
+# Specify a tag from the hub75 project to fall back to a specific version
+# set(HUB75_TAG v4.0.0)
+# Set HUB75_TAG to main to compile with the latest version
+set(HUB75_TAG main)
+```
+
+To switch versions:
+
+1. **Set the hub75 version** — edit `HUB75_TAG` to a released tag (see the [hub75 tags](https://github.com/JuPfu/hub75/tags)) or a specific commit hash for full reproducibility. Tracking `main` gets you the latest driver features immediately, but it can also pull in breaking changes without warning — pin a tag for anything beyond local experimentation.
+
+2. **Force a re-fetch** — run `./build.sh --fresh` and confirm clearing `.deps/` when prompted, so the new `HUB75_TAG` is actually picked up rather than reusing the cached checkout.
+
+3. **Check `hub75_lvgl.cpp` still matches the driver's API** — hub75 exposes the panel's screen dimensions and rotation handling via the `HUB75_SCREEN_WIDTH`/`HUB75_SCREEN_HEIGHT` macros (see [Integrating LVGL with the Hub75 Driver](#integrating-lvgl-with-the-hub75-driver) below). A driver update that changes these macros, the `update_bgr()` signature, or panel-configuration defines may require small adjustments here.
+
 Your directory structure should look like this:
 
 ```bash
+.deps        # cached LVGL & hub75 sources — persists across clean builds
 assets
 build
 examples
@@ -203,9 +244,9 @@ README.md
 
 ---
 
-## Connecting LVGL to the HUB75 Driver
+## Integrating LVGL with the Hub75 Driver
 
-The steps below describe how **LVGL** is connected to the HUB75 driver in this project. This can be the basis for your modifications.
+The steps below describe how **LVGL** is connected to the **[hub75](https://github.com/JuPfu/hub75)** driver in this project. This can be the basis for your own modifications.
 
 ### 1. Millisecond Tick Source
 
@@ -226,31 +267,41 @@ Connects LVGL's draw buffer to the HUB75 display. The `area` parameter is not us
 ```c
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 {
-    update(px_map);                  // Transfer buffer to HUB75 driver
+    update_bgr(px_map);              // Transfer buffer to the hub75 driver
     lv_display_flush_ready(display); // Notify LVGL that flush is complete
 }
 ```
 
-> `update()` is provided by the optimised [`hub75`](https://github.com/JuPfu/hub75/blob/main/hub75.cpp) driver.
+> `update_bgr()` is provided by the [`hub75`](https://github.com/JuPfu/hub75/blob/main/src/hub75.cpp) driver. It's used here instead of the PicoGraphics-facing `update()` because this project sets `USE_PICO_GRAPHICS=false` in `CMakeLists.txt` — LVGL supplies the pixel data directly, so PicoGraphics isn't part of the pipeline.
 
 ### 3. Choose LV_DISPLAY_RENDER_MODE_FULL
 
 With `LV_DISPLAY_RENDER_MODE_FULL`, the buffer size must match the size of the display, and LVGL renders directly into the correct location of that buffer. The buffer therefore always contains the complete display image.
 
+Size the LVGL display and buffer using `HUB75_SCREEN_WIDTH`/`HUB75_SCREEN_HEIGHT` — **not** the raw `MATRIX_PANEL_WIDTH`/`MATRIX_PANEL_HEIGHT`. These macros are defined by the hub75 driver and already account for panel chaining (`CHAIN_COLS`/`CHAIN_ROWS`) as well as `DISPLAY_ROTATION`: for a 90°/270° rotation they're swapped relative to the panel's physical width/height, matching the *logical*, already-rotated frame that the driver expects LVGL to draw into. Using `MATRIX_PANEL_WIDTH`/`HEIGHT` directly only happens to work for a single, unrotated panel — it gives the wrong buffer size for anything chained or rotated.
+
 ```c
-    lv_init();
-    lv_tick_set_cb(get_milliseconds_since_boot);
+#define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
 
-    display1 = lv_display_create(MATRIX_PANEL_WIDTH, MATRIX_PANEL_HEIGHT);
-    if (display1 == NULL)
-    {
-        printf("lv_display_create failed\n");
-        return -1;
-    }
+static uint8_t buf1[HUB75_SCREEN_WIDTH * HUB75_SCREEN_HEIGHT * BYTES_PER_PIXEL];
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), MATRIX_PANEL_WIDTH * 3, LV_DISPLAY_RENDER_MODE_FULL);
-    lv_display_set_flush_cb(display1, flush_cb);
+lv_init();
+lv_tick_set_cb(get_milliseconds_since_boot);
+
+display1 = lv_display_create(HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
+if (display1 == NULL)
+{
+    printf("lv_display_create failed\n");
+    return -1;
+}
+
+lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1),
+                                    HUB75_SCREEN_WIDTH * BYTES_PER_PIXEL,
+                                    LV_DISPLAY_RENDER_MODE_FULL);
+lv_display_set_flush_cb(display1, flush_cb);
 ```
+
+> ⚠️ Don't additionally call `lv_display_set_rotation()` — hub75 already handles rotation internally via `HUB75_SCREEN_WIDTH`/`HUB75_SCREEN_HEIGHT` and its own pixel remapping (`DISPLAY_ROTATION` in `CMakeLists.txt`). Calling both would rotate the image twice.
 
 ### 4. Periodic Timer Handler Call
 
@@ -274,8 +325,8 @@ while (true)
 
 ## Dependencies
 
-- [LVGL](https://github.com/lvgl/lvgl)
-- [hub75_lvgl](https://github.com/JuPfu/hub75_lvgl) (custom optimized driver)
+- [LVGL](https://github.com/lvgl/lvgl) — graphics library, version pinned via `LV_TAG`
+- [hub75](https://github.com/JuPfu/hub75) — HUB75 LED matrix driver, version pinned via `HUB75_TAG`
 - CMake build system (standard for Pico SDK projects)
 
 ---
