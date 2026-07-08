@@ -4,7 +4,7 @@ This project demonstrates how to run [LVGL](https://lvgl.io/) on a Raspberry Pi 
 
 ## Last Changes
 
-I followed [cmair](https://github.com/cmair)'s suggestion to fetch (download) `LVGL` during the build process. This results in weaker coupling with `LVGL`. It also makes it easy to switch to a different version of `LVGL` by setting `LV_TAG` to the desired version in `CMakeLists.txt`, e.g., `set(LV_TAG v9.4.0)`.
+I followed [cmair](https://github.com/cmair)'s suggestion to fetch (download) `LVGL` during the build process. This results in weaker coupling with `LVGL`. It also makes it easy to switch to a different version of `LVGL` by setting `LV_TAG` to the desired version in `CMakeLists.txt`, e.g., `set(LV_TAG v9.4.0)`. The same applies for the integration of the [Hub75](https://github.com/JuPfu/hub75) library. Set `HUB75_TAG`to the desired version in `CMakeLists.txt`, e.g., `set(HUB75_TAG v4.0.0)`.
 
 ## Demo Effects
 
