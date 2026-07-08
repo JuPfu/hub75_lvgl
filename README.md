@@ -48,7 +48,16 @@ The goal of this project is to substitute `Pimoroni's Pico Graphics library` wit
 +----------------------+       +----------------------+
 ```
 
-The HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up **core 0** for LVGL rendering and animation logic.
+By default the HUB75 driver runs on **core 1**, utilizing **PIO** and **DMA**, freeing up **core 0** for LVGL rendering and animation logic. You can move the HUB75 driver to **core 0** by setting
+
+```make
+target_compile_definitions(hub75_lvgl PRIVATE
+   ...
+   HUB75_MULTICORE=false
+   ...
+)
+```
+in file `CMakeLists.txt`.
 
 ---
 
