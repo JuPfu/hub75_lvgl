@@ -70,7 +70,7 @@ This project depends on **two** external libraries, both fetched automatically a
 - **[LVGL](https://github.com/lvgl/lvgl)** — the graphics library, version pinned by `LV_TAG` in `CMakeLists.txt`.
 - **[hub75](https://github.com/JuPfu/hub75)** — the underlying HUB75 LED matrix driver this project builds on, version pinned by `HUB75_TAG` in `CMakeLists.txt`.
 
-### What happens during a build (in plain words)
+### What happens during a build
 
 Building this project involves four things that happen automatically, so you normally don't need to set anything up by hand:
 
