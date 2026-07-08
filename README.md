@@ -100,11 +100,11 @@ cd hub75_lvgl
 
 `build.sh` wraps the CMake/Ninja invocation and lets you decide how to handle an existing build or dependency cache, rather than always wiping everything:
 
-| Flag | Effect |
-|---|---|
-| *(none)* | Reuses an existing `build/` directory if present, or creates one if it doesn't exist. Prompts before removing anything. |
+| Flag            | Effect |
+|-----------------|---|
+| *(none)*        | Reuses an existing `build/` directory if present, or creates one if it doesn't exist. Prompts before removing anything. |
 | `-f`, `--fresh` | Removes `build/` before configuring. You'll then be asked whether to also clear `.deps/` (this forces a full re-clone of LVGL **and** hub75 — only do this if you actually need the latest sources or suspect a stale cache). |
-| `-h`, `--help` | Shows usage. |
+| `-h`, `--help`  | Shows usage. |
 
 Under the hood, once those decisions are made, it runs:
 
