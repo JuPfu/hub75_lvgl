@@ -81,7 +81,7 @@ enum DemoIndex
 
 static critical_section_t crit_sec = {0};                                              ///< Synchronization for safe time reading
 static int frame_index = DEMO_BOUNCE;                                                  ///< Current demo index
-alignas(4) uint8_t buf1[Panel::SCREEN_WIDTH * Panel::SCREEN_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
+alignas(4) static uint8_t buf1[Panel::SCREEN_WIDTH * Panel::SCREEN_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
 
