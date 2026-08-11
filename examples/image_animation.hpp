@@ -8,6 +8,7 @@
 #include "matreshka_32x16.h"
 
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
+template <uint32_t W, uint32_t H>
 class ImageAnimation
 {
 private:

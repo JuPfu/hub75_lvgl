@@ -15,6 +15,50 @@
 
 #include "lvgl.h"
 
+// Panel/pin/color/rotation configuration - see include/hub75.hpp for field docs.
+// Matches a single generic 64x64 panel wired to GPIO 0-13.
+constexpr Hub75Config panel_cfg{
+    .panel = {
+        .matrix_panel_width = 64,
+        .matrix_panel_height = 64,
+        .chain_rows = 1,
+        .chain_cols = 1,
+        .chain_mode = Hub75ChainMode::SERPENTINE,
+        .panel_kind = RowMapping::Standard,
+        .panel_chip = Hub75PanelChip::GENERIC,
+        .inverted_stb = false,
+        .sm_clockdiv_factor = 1.0f,
+        .base_latch_ns = 80,
+        .base_addr_ns = 160,
+    },
+    .screen = {
+        .rotation = Hub75Rotation::DEG_180,
+    },
+    .pins = {
+        .data_base_pin = 30,
+        .data_n_pins = 6,
+        .rowsel_base_pin = 36,
+        .rowsel_n_pins = 5,
+        .clk_pin = 41,
+        .strobe_pin = 42,
+        .oen_pin = 43,
+    },
+    .color = {
+        .bitplanes = 10,
+        .separate_cie_channels = true,
+        .balanced_light_output = true,
+        .ccm_rg_shift = 6,
+        .ccm_gb_shift = 7,
+    },
+    .frame_rate_debug = true,
+};
+
+using Panel = Hub75Driver<panel_cfg>;
+
+// Large fixed-size buffers - must have static storage duration, not live on the stack.
+static Panel driver;
+
+// Example effects
 #include "bouncing_balls.hpp"
 #include "fire_effect.hpp"
 #include "image_animation.hpp"
@@ -35,14 +79,18 @@ enum DemoIndex
     DEMO_COLOUR,
 };
 
-static critical_section_t crit_sec = {0};                              ///< Synchronization for safe time reading
-static int frame_index = DEMO_BOUNCE;                                  ///< Current demo index
-static uint8_t buf1[HUB75_SCREEN_WIDTH * HUB75_SCREEN_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
+static critical_section_t crit_sec = {0};                                              ///< Synchronization for safe time reading
+static int frame_index = DEMO_BOUNCE;                                                  ///< Current demo index
+alignas(4) uint8_t buf1[Panel::SCREEN_WIDTH * Panel::SCREEN_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
 
 static bool load_anim = true; ///< Flag to trigger animation setup
 
+using BouncingBalls_T = BouncingBalls<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT>;
+using FireEffect_T = FireEffect<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT>;
+using ColourCheck_T = ColourCheck<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT>;
+using ImageAnimation_T = ImageAnimation<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT>;
 //--------------------------------------------------------------------------------
 // Utility Functions
 //--------------------------------------------------------------------------------
@@ -92,7 +140,7 @@ uint32_t get_milliseconds_since_boot()
  */
 void flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *px_map)
 {
-    update_bgr(px_map);              ///< Transfer buffer to display driver
+    driver.update_bgr(px_map);       ///< Transfer buffer to display driver
     lv_display_flush_ready(display); ///< Notify LVGL that flush is complete
 }
 
@@ -164,8 +212,8 @@ bool skip_to_next_demo(__unused struct repeating_timer *t)
  */
 void core1_entry()
 {
-    create_hub75_driver();
-    start_hub75_driver();
+    driver.create();
+    driver.start();
 
     // KEEP CORE 1 ALIVE — without this, Core 1's NVIC is torn down and DMA_IRQ_1 stops firing
     //
@@ -181,7 +229,7 @@ void core1_entry()
  */
 void initialize()
 {
-    // Set system clock to 250MHz - just to show that it is possible to drive the HUB75 panel with a high clock speed
+    // Set system clock to 266MHz - just to show that it is possible to drive the HUB75 panel with a high clock speed
     set_sys_clock_khz(266000, true);
 
     stdio_init_all(); // Initialize Pico SDK
@@ -190,15 +238,18 @@ void initialize()
 
     led_init(); // Initialize LED - blinking at program start
 
-#if HUB75_MULTICORE == true
-    // Run hub75 driver on core1
-    multicore_reset_core1();             // Reset core 1
-    multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
-#else
-    // Run hub75 on core0 - the Hub75 driver is doing its job here
-    create_hub75_driver();
-    start_hub75_driver();
-#endif
+    if constexpr (HUB75_MULTICORE)
+    {
+        // Run hub75 driver on core1
+        multicore_reset_core1();             // Reset core 1
+        multicore_launch_core1(core1_entry); // Launch core 1 entry function - the Hub75 driver is doing its job there
+    }
+    else
+    {
+        // Run hub75 on core0 - the Hub75 driver is doing its job here
+        driver.create();
+        driver.start();
+    }
 }
 
 /**
@@ -213,7 +264,8 @@ void initialize()
  * @param colorCheck display colour squares
  * @param timer Reference to the demo-switching timer.
  */
-void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, ColourCheck &colourCheck, struct repeating_timer &timer)
+template <uint32_t W, uint32_t H>
+void setup_demo(int index, BouncingBalls<W, H> &bouncingBalls, FireEffect<W, H> &fireEffect, ImageAnimation<W, H> &imageAnimation, ColourCheck<W, H> &colourCheck, struct repeating_timer &timer)
 {
     switch (index)
     {
@@ -246,7 +298,8 @@ void setup_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect,
  * @param colorCheck display colour squares
  * @param timer Reference to the demo-switching timer.
  */
-void update_demo(int index, BouncingBalls &bouncingBalls, FireEffect &fireEffect, ImageAnimation &imageAnimation, ColourCheck &colourCheck, struct repeating_timer &timer)
+template <uint32_t W, uint32_t H>
+void update_demo(int index, BouncingBalls<W, H> &bouncingBalls, FireEffect<W, H> &fireEffect, ImageAnimation<W, H> &imageAnimation, ColourCheck<W, H> &colourCheck, struct repeating_timer &timer)
 {
     switch (index)
     {
@@ -290,35 +343,36 @@ int main()
     lv_init();
     lv_tick_set_cb(get_milliseconds_since_boot);
 
-    display1 = lv_display_create(HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
+    display1 = lv_display_create(Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT);
     if (display1 == NULL)
     {
         printf("lv_display_create failed\n");
         return -1;
     }
 
-    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), HUB75_SCREEN_WIDTH * BYTES_PER_PIXEL, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers_with_stride(display1, buf1, NULL, sizeof(buf1), Panel::SCREEN_WIDTH * BYTES_PER_PIXEL, LV_DISPLAY_RENDER_MODE_FULL);
     lv_display_set_flush_cb(display1, flush_cb);
+
+    // Only now is LVGL fully set up — safe to construct LVGL-backed objects
+    static BouncingBalls<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT> bouncingBalls(10);
+    static FireEffect<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT> fireEffect;
+    static ColourCheck<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT> colourCheck;
+    static ImageAnimation<Panel::SCREEN_WIDTH, Panel::SCREEN_HEIGHT> imageAnimation;
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
     // The animated examples are updated at 120 Hz.
     const float fps = 120.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
-    BouncingBalls bouncingBalls(15, HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
-    FireEffect fireEffect(HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
-    ImageAnimation imageAnimation(HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
-    ColourCheck colourCheck(HUB75_SCREEN_WIDTH, HUB75_SCREEN_HEIGHT);
-
     struct repeating_timer timer;
     add_repeating_timer_ms(15000, skip_to_next_demo, NULL, &timer);
 
     // set basis brightness of matrix panel
-    setBasisBrightness(8);
+    driver.setBasisBrightness(8);
 
     // set full brightness of panel
     float intensity = 1.0f;
-    setIntensity(intensity);
+    driver.setIntensity(intensity);
 
     while (true)
     {

@@ -7,8 +7,11 @@
 
 #include "lvgl.h"
 
+#include <random>
+
 #define BYTES_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB888))
 
+template <uint32_t W, uint32_t H>
 class BouncingBalls
 {
 private:
@@ -22,7 +25,8 @@ private:
         lv_color_t pen;
     };
 
-    uint width, height;
+    alignas(4) uint8_t data_buf[W * H * BYTES_PER_PIXEL];
+
     uint quantityOfBalls;
 
     std::vector<mPoint> mShapes;
@@ -32,7 +36,6 @@ private:
     lv_obj_t *canvas;
     lv_draw_buf_t *draw_buf;
     lv_layer_t layer;
-    uint8_t *data_buf;
     lv_obj_t *screen;
     lv_draw_rect_dsc_t circle_dsc;
     lv_style_t label_style;
@@ -40,44 +43,47 @@ private:
     lv_style_t scrolling_label_style;
 
 public:
-    explicit BouncingBalls(uint quantityOfBalls = 10, uint width = 64, uint height = 64) : width(width), height(height), quantityOfBalls(quantityOfBalls)
+    explicit BouncingBalls(uint quantityOfBalls = 10) : quantityOfBalls(quantityOfBalls)
     {
-        if (width <= 32)
+        if (H <= 32)
         {
             quantityOfBalls = std::min((uint)3, quantityOfBalls);
         }
 
+        printf("Constructor BouncingBalls vor mShapes.reserve\n");
         mShapes.reserve(quantityOfBalls);
 
-        data_buf = new uint8_t[width * height * BYTES_PER_PIXEL]();
-        if (data_buf == nullptr)
-        {
-            printf("Failed to allocate data_buf\n");
-            return;
-        }
-
         /*Create a buffer for the canvas*/
-        draw_buf = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_RGB888, LV_STRIDE_AUTO);
-        lv_result_t res = lv_draw_buf_init(draw_buf, width, height, LV_COLOR_FORMAT_RGB888, LV_STRIDE_AUTO, data_buf, width * height * BYTES_PER_PIXEL);
+        printf("Constructor BouncingBalls vor lv_draw_buf_create.reserve\n");
+        draw_buf = lv_draw_buf_create(W, H, LV_COLOR_FORMAT_RGB888, LV_STRIDE_AUTO);
+        printf("Constructor BouncingBalls vor lv_draw_buf_init %lu\n", sizeof(data_buf));
+        lv_result_t res = lv_draw_buf_init(draw_buf, W, H, LV_COLOR_FORMAT_RGB888, LV_STRIDE_AUTO, data_buf, W * H * BYTES_PER_PIXEL);
         if (res != LV_RESULT_OK)
         {
             printf("lv_draw_buf_init failed %d\n", res);
         }
 
+        printf("Constructor BouncingBalls vor lv_obj_create\n");
         screen = lv_obj_create(NULL);
 
         canvas = lv_canvas_create(screen);
-        lv_canvas_set_buffer(canvas, data_buf, width, height, LV_COLOR_FORMAT_RGB888);
+        printf("Constructor BouncingBalls nach lv_canvas_create\n");
+        lv_canvas_set_buffer(canvas, data_buf, W, H, LV_COLOR_FORMAT_RGB888);
+        printf("Constructor BouncingBalls vor lv_canvas_set_draw_buf\n");
         lv_canvas_set_draw_buf(canvas, draw_buf);
+        printf("Constructor BouncingBalls vor lv_obj_center\n");
         lv_obj_center(canvas);
+        printf("Constructor BouncingBalls vor lv_canvas_fill_bg\n");
         lv_canvas_fill_bg(canvas, lv_color_make(200, 120, 70), LV_OPA_COVER);
 
+        printf("Constructor BouncingBalls vor mCreateShapes\n");
         mCreateShapes(quantityOfBalls);
 
+        printf("Constructor BouncingBalls vor lv_style_init");
         lv_style_init(&label_style);
         lv_style_set_text_color(&label_style, lv_color_make(250, 250, 250));
         lv_obj_t *label1 = lv_label_create(screen);
-        if (width <= 32)
+        if (W <= 32)
         {
             lv_label_set_text(label1, "Hello");
         }
@@ -111,12 +117,89 @@ public:
         lv_label_set_text(label2, "This is a circulating scrolling text. ");
         lv_obj_align(label2, LV_ALIGN_CENTER, 0, 20);
         lv_obj_add_style(label2, &scrolling_label_style, LV_STATE_DEFAULT);
+        printf("Constructor BouncingBalls ENDE\n");
     }
 
     void bounce();
 
     void show()
     {
+        printf("Bouncing balls show\n");
         lv_screen_load_anim(screen, LV_SCREEN_LOAD_ANIM_FADE_IN, 2000, 0, false);
     }
 };
+
+
+// Example derived from https://github.com/pimoroni/pimoroni-pico/blob/main/examples/interstate75/interstate75_balls_demo.cpp
+template <uint32_t W, uint32_t H>
+void BouncingBalls<W, H>::bounce()
+{
+    lv_canvas_fill_bg(canvas, lv_color_make(100, 80, 170), LV_OPA_COVER);
+    lv_canvas_init_layer(canvas, &layer);
+    lv_draw_rect_dsc_init(&circle_dsc);
+
+    for (auto &shape : mShapes)
+    {
+        shape.x += shape.dx;
+        shape.y += shape.dy;
+
+        if (shape.x - shape.r < 0)
+        {
+            shape.dx = -shape.dx;
+            shape.x = shape.r;
+        }
+        else if (shape.x + shape.r >= W)
+        {
+            shape.dx = -shape.dx;
+            shape.x = W - shape.r;
+        }
+
+        if (shape.y - shape.r < 0)
+        {
+            shape.dy = -shape.dy;
+            shape.y = shape.r;
+        }
+        else if (shape.y + shape.r >= H)
+        {
+            shape.dy = -shape.dy;
+            shape.y = H - shape.r;
+        }
+
+        circle_dsc.bg_color = shape.pen;
+        circle_dsc.bg_opa = LV_OPA_70;
+        circle_dsc.radius = shape.r;
+
+        lv_area_t coords = {
+            static_cast<lv_coord_t>(shape.x - shape.r),
+            static_cast<lv_coord_t>(shape.y - shape.r),
+            static_cast<lv_coord_t>(shape.x + shape.r),
+            static_cast<lv_coord_t>(shape.y + shape.r)};
+
+        lv_draw_rect(&layer, &circle_dsc, &coords);
+    }
+
+    lv_canvas_finish_layer(canvas, &layer);
+}
+
+template <uint32_t W, uint32_t H>
+void BouncingBalls<W, H>::mCreateShapes(int quantityOfBalls)
+{
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<int> rand_x(0, W - 1);
+    static std::uniform_int_distribution<int> rand_y(0, H - 1);
+    static std::uniform_int_distribution<int> rand_r(2, 6);
+    static std::uniform_real_distribution<float> rand_speed(-2.0f, 2.0f);
+    static std::uniform_int_distribution<uint8_t> rand_color(0, 255);
+
+    for (uint8_t i = 0; i < quantityOfBalls; i++)
+    {
+        mShapes.emplace_back(mPoint{
+            static_cast<float>(rand_x(gen)),
+            static_cast<float>(rand_y(gen)),
+            static_cast<float>(rand_r(gen)),
+            rand_speed(gen),
+            rand_speed(gen),
+            lv_color_make(rand_color(gen), rand_color(gen), rand_color(gen))});
+    }
+}
