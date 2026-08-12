@@ -4,6 +4,9 @@
 # exclude build directory
 build/
 
+# exclude dependencies directory
+.deps/
+
 # Prerequisites
 *.d
 
