@@ -32,7 +32,7 @@ constexpr Hub75Config panel_cfg{
         .base_addr_ns = 160,
     },
     .screen = {
-        .rotation = Hub75Rotation::DEG_180,
+        .rotation = Hub75Rotation::DEG_0,
     },
     .pins = {
         .data_base_pin = 30,
@@ -79,8 +79,8 @@ enum DemoIndex
     DEMO_COLOUR,
 };
 
-static critical_section_t crit_sec = {0};                                              ///< Synchronization for safe time reading
-static int frame_index = DEMO_BOUNCE;                                                  ///< Current demo index
+static critical_section_t crit_sec = {0};                                                     ///< Synchronization for safe time reading
+static int frame_index = DEMO_BOUNCE;                                                         ///< Current demo index
 alignas(4) static uint8_t buf1[Panel::SCREEN_WIDTH * Panel::SCREEN_HEIGHT * BYTES_PER_PIXEL]; ///< Drawing buffer for LVGL
 
 static lv_display_t *display1; ///< LVGL display handle
@@ -361,7 +361,7 @@ int main()
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
     // The animated examples are updated at 120 Hz.
-    const float fps = 120.0f;
+    const float fps = 100.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
     struct repeating_timer timer;
@@ -374,6 +374,8 @@ int main()
     float intensity = 1.0f;
     driver.setIntensity(intensity);
 
+    absolute_time_t next_frame = make_timeout_time_ms((uint32_t)frame_delay_ms);
+
     while (true)
     {
         if (load_anim)
@@ -385,6 +387,7 @@ int main()
         update_demo(frame_index, bouncingBalls, fireEffect, imageAnimation, colourCheck, timer);
 
         lv_timer_handler();
-        sleep_ms(frame_delay_ms);
+        sleep_until(next_frame);
+        next_frame = delayed_by_ms(next_frame, (uint32_t)frame_delay_ms);
     }
 }
