@@ -16,7 +16,7 @@ else()
     set(USERHOME $ENV{HOME})
 endif()
 set(sdkVersion 2.3.0)
-set(toolchainVersion 14_2_Rel1)
+set(toolchainVersion 15_2_Rel1)
 set(picotoolVersion 2.3.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
@@ -28,7 +28,7 @@ endif()
 
 # Uncomment the following two lines to compile for bare RP2350 without a board
 set(PICO_PLATFORM rp2350)
-set(PICO_BOARD none CACHE STRING "Board type")
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
