@@ -38,7 +38,7 @@ constexpr Hub75Config panel_cfg{
         .data_base_pin = 0,
         .data_n_pins = 6,
         .rowsel_base_pin = 6,
-        .rowsel_n_pins = 4,
+        .rowsel_n_pins = 5,
         .clk_pin = 11,
         .strobe_pin = 12,
         .oen_pin = 13,
