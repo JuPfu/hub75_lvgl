@@ -59,7 +59,7 @@ pico_set_program_version(${PROJECT_NAME} "3.4.0")
 # ── Step 2 — Fetch LVGL ───────────────────────────────────────────────────────
 
 # Set LV_TAG to the LVGL version you want to use
-# Do not forget to configure lv_conf.h!!! See README.md for details. 
+# Do not forget to configure lv_conf.h!!! See README.md for details.
 set(LV_TAG v9.5.0)
 
 message(STATUS "Step 2/4 — Fetching LVGL ${LV_TAG} from GitHub...")
@@ -115,10 +115,28 @@ message(STATUS "           Source : ${lvgl_SOURCE_DIR}")
 message(STATUS "           Config : ${LV_CONF_PATH}")
 message(STATUS "")
 
+# ── Step 3 — Fetch hub75 (source only) ────────────────────────────────────────
+#
+# Deliberately NOT add_subdirectory(${hub75_SOURCE_DIR}) here. hub75's own
+# CMakeLists.txt builds a "hub75" STATIC library with its own default
+# target_compile_definitions(hub75 PUBLIC ...) and — regardless of
+# USE_PICO_GRAPHICS — an unconditional target_link_libraries(hub75 PUBLIC
+# ... pico_graphics), which this project never fetches. Definitions applied
+# to hub75_lvgl would never reach that separately-built library's translation
+# units either way.
+#
+# Instead we pull hub75's sources in via FetchContent_Populate() (no
+# subdirectory processing) and compile hub75.cpp/fm6126a.cpp/rul6024.cpp
+# directly as part of the hub75_lvgl executable below. That way our own
+# target_compile_definitions(${PROJECT_NAME} ...) land exactly on the
+# translation units that need them, and — since USE_PICO_GRAPHICS=false keeps
+# hub75.hpp from ever #include-ing pico_graphics.hpp — no pico_graphics
+# dependency is pulled in at all.
+
 # Specify a tag from the hub75 project to fall back to a specific version
-# set(HUB75_TAG v4.0.0)
+# set(HUB75_TAG v5.0.0)
 # Set HUB75_TAG to main to compile with the latest version
-# NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR). 
+# NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR).
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
 set(HUB75_TAG main)
 
@@ -141,7 +159,8 @@ message(STATUS "           Source : ${hub75_SOURCE_DIR}")
 message(STATUS "           Include : ${hub75_SOURCE_DIR}/include")
 message(STATUS "")
 
-# Use local cie.py to generate cie.hpp
+# Use local cie.py to generate cie.hpp — hub75.cpp #includes this, so it must
+# exist before hub75.cpp is compiled (enforced below via add_dependencies).
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(CIE_HPP ${hub75_SOURCE_DIR}/include/cie.hpp)
@@ -157,19 +176,17 @@ add_custom_command(
 add_custom_target(generate_cie_hpp DEPENDS ${CIE_HPP})
 add_dependencies(${PROJECT_NAME} generate_cie_hpp)
 
-# ── Step 3 — Configure targets ────────────────────────────────────────────────
+# ── Step 4 — Configure targets ────────────────────────────────────────────────
 message(STATUS "Step 4/4 — Configuring targets...")
 
-
-
-# No need to modify preprocessor defines in hub75.cpp - instead set their values here.
+# No need to modify preprocessor defines in hub75.hpp - instead set their values here.
 #
 # Example:
 # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
-target_compile_definitions(hub75_lvgl PRIVATE
+target_compile_definitions(${PROJECT_NAME} PRIVATE
     PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
-    USE_PICO_GRAPHICS=false     # set to false if you use hub75 as a library - any reference to pico_graphics is removed
+    USE_PICO_GRAPHICS=false     # hub75_lvgl uses LVGL instead of pico_graphics - keeps hub75.hpp from pulling in pico_graphics.hpp at all
     HUB75_MULTICORE=true        # use core1 for the hub75 driver
 )
 
@@ -177,13 +194,16 @@ target_compile_definitions(hub75_lvgl PRIVATE
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME}  1)
 
-# Generate PIO header
+# Generate PIO header for hub75's PIO program — single call, since hub75's own
+# CMakeLists.txt is never processed (no add_subdirectory), this is the only place it happens.
 pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    # hub75 core driver — compiled directly into this executable (see note above)
     ${hub75_SOURCE_DIR}/src/hub75.cpp
     ${hub75_SOURCE_DIR}/src/fm6126a.cpp
     ${hub75_SOURCE_DIR}/src/rul6024.cpp
+
     ${CMAKE_CURRENT_LIST_DIR}/hub75_lvgl.cpp
     ${CMAKE_CURRENT_LIST_DIR}/examples/bouncing_balls.hpp
     ${CMAKE_CURRENT_LIST_DIR}/examples/fire_effect.hpp
@@ -193,12 +213,14 @@ target_sources(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}           # lv_conf.h
     ${hub75_SOURCE_DIR}/src             # hub75.pio.h (generated), hub75.cpp internals
-    ${hub75_SOURCE_DIR}/include         # hub75.hpp
+    ${hub75_SOURCE_DIR}/include         # hub75.hpp (public API)
     ${CMAKE_CURRENT_LIST_DIR}/examples
     ${lvgl_SOURCE_DIR}                  # resolves "lvgl/src/..." style includes
 )
 
 # Add any user requested libraries
+# Note: no "hub75" library target here — its sources are compiled directly
+# into ${PROJECT_NAME} above, so there is nothing separate to link.
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     pico_multicore
