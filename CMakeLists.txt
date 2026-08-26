@@ -49,6 +49,8 @@ pico_sdk_init()
 message(STATUS "Step 1/4 — Pico SDK ✓  (${PICO_SDK_VERSION_STRING})")
 message(STATUS "")
 
+add_subdirectory(utils)
+
 add_executable(${PROJECT_NAME} hub75_lvgl.cpp)
 
 pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
@@ -118,7 +120,7 @@ message(STATUS "")
 # Set HUB75_TAG to main to compile with the latest version
 # NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR). 
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
-set(HUB75_TAG dual_instance_driver_0.9)
+set(HUB75_TAG main)
 
 FetchContent_Declare(
     hub75
@@ -167,6 +169,7 @@ message(STATUS "Step 4/4 — Configuring targets...")
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
 target_compile_definitions(hub75_lvgl PRIVATE
     PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
+    USE_PICO_GRAPHICS=false     # set to false if you use hub75 as a library - any reference to pico_graphics is removed
     HUB75_MULTICORE=true        # use core1 for the hub75 driver
 )
 
@@ -190,7 +193,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}           # lv_conf.h
     ${hub75_SOURCE_DIR}/src             # hub75.pio.h (generated), hub75.cpp internals
-    ${hub75_SOURCE_DIR}/include         # hub75.hpp  ← add this
+    ${hub75_SOURCE_DIR}/include         # hub75.hpp
     ${CMAKE_CURRENT_LIST_DIR}/examples
     ${lvgl_SOURCE_DIR}                  # resolves "lvgl/src/..." style includes
 )
@@ -210,6 +213,7 @@ if(PICO_CYW43_SUPPORTED)
 endif()
 
 pico_add_extra_outputs(${PROJECT_NAME})
+print_size_info(${PROJECT_NAME})
 
 message(STATUS "Step 4/4 — Targets configured ✓")
 message(STATUS "")
