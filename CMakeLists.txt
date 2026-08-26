@@ -24,11 +24,11 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-# set(PICO_BOARD pico2 CACHE STRING "Board type")
+set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Uncomment the following two lines to compile for bare RP2350 without a board
-set(PICO_PLATFORM rp2350)
-set(PICO_BOARD pico2 CACHE STRING "Board type")
+# set(PICO_PLATFORM rp2350)
+# set(PICO_BOARD none CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -185,7 +185,7 @@ message(STATUS "Step 4/4 — Configuring targets...")
 # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-    PICO_RP2350A=0              # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
+    # PICO_RP2350A=0            # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
     USE_PICO_GRAPHICS=false     # hub75_lvgl uses LVGL instead of pico_graphics - keeps hub75.hpp from pulling in pico_graphics.hpp at all
     HUB75_MULTICORE=true        # use core1 for the hub75 driver
 )
