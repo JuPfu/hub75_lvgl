@@ -15,9 +15,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.3.0)
+set(sdkVersion 2.3.1)
 set(toolchainVersion 15_2_Rel1)
-set(picotoolVersion 2.3.0)
+set(picotoolVersion 2.3.1)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -134,11 +134,11 @@ message(STATUS "")
 # dependency is pulled in at all.
 
 # Specify a tag from the hub75 project to fall back to a specific version
-# set(HUB75_TAG v5.0.0)
+# set(HUB75_TAG v5.0.1)
 # Set HUB75_TAG to main to compile with the latest version
 # NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR).
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
-set(HUB75_TAG main)
+set(HUB75_TAG v5.0.1)
 
 FetchContent_Declare(
     hub75
