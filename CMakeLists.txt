@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Initialise pico_sdk from installed location
@@ -24,11 +24,11 @@ if (EXISTS ${picoVscode})
 endif()
 # ====================================================================================
 
-set(PICO_BOARD pico2 CACHE STRING "Board type")
+# set(PICO_BOARD pico2 CACHE STRING "Board type")
 
 # Uncomment the following two lines to compile for bare RP2350 without a board
-# set(PICO_PLATFORM rp2350)
-# set(PICO_BOARD none CACHE STRING "Board type")
+set(PICO_PLATFORM rp2350)
+set(PICO_BOARD none CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -138,7 +138,7 @@ message(STATUS "")
 # Set HUB75_TAG to main to compile with the latest version
 # NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR).
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
-set(HUB75_TAG v5.0.1)
+set(HUB75_TAG PWM_ICND2153)
 
 FetchContent_Declare(
     hub75
@@ -185,7 +185,7 @@ message(STATUS "Step 4/4 — Configuring targets...")
 # Settings for a RP2350B microcontroller with GPIO pins spanning from 30 to 43.
 # Beware to set `PICO_PLATFORM rp2350` and `PICO_BOARD none` prior to `include(pico_sdk_import.cmake)`
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-    # PICO_RP2350A=0            # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
+    PICO_RP2350A=0            # PICO_RP2350A=0` means not a RP2350A but a RP2350B microcontroller - uncomment for RP235xB microcontroller only!
     USE_PICO_GRAPHICS=false     # hub75_lvgl uses LVGL instead of pico_graphics - keeps hub75.hpp from pulling in pico_graphics.hpp at all
     HUB75_MULTICORE=true        # use core1 for the hub75 driver
 )
@@ -196,11 +196,12 @@ pico_enable_stdio_usb(${PROJECT_NAME}  1)
 
 # Generate PIO header for hub75's PIO program — single call, since hub75's own
 # CMakeLists.txt is never processed (no add_subdirectory), this is the only place it happens.
-pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio ${hub75_SOURCE_DIR}/src/icnd2153.pio)
 
 target_sources(${PROJECT_NAME} PRIVATE
     # hub75 core driver — compiled directly into this executable (see note above)
     ${hub75_SOURCE_DIR}/src/hub75.cpp
+    ${hub75_SOURCE_DIR}/src/icnd2153.cpp
     ${hub75_SOURCE_DIR}/src/fm6126a.cpp
     ${hub75_SOURCE_DIR}/src/rul6024.cpp
 

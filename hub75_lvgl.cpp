@@ -19,34 +19,38 @@
 // Matches a single generic 64x64 panel wired to GPIO 0-13.
 constexpr Hub75Config panel_cfg{
     .panel = {
-        .matrix_panel_width = 64,
+        .matrix_panel_width = 128,
         .matrix_panel_height = 64,
         .chain_rows = 1,
         .chain_cols = 1,
+        .panel_class = PanelClass::PWM,
         .chain_mode = Hub75ChainMode::SERPENTINE,
         .panel_kind = RowMapping::Standard,
-        .panel_chip = Hub75PanelChip::GENERIC,
+        .address_type = RowAddressing::Binary,
+        .scan_mode = 0, // 0: try to automatically deduce scan_mode - <value>: take value as scan_mode
+        .panel_chip = Hub75PanelChip::ICND2153,
         .inverted_stb = false,
         .sm_clockdiv_factor = 1.0f,
-        .base_latch_ns = 80,
-        .base_addr_ns = 160,
+        .base_latch_ns = 180,
+        .base_addr_ns = 260,
     },
     .screen = {
         .rotation = Hub75Rotation::DEG_0,
     },
     .pins = {
-        .data_base_pin = 0,
+        .data_base_pin = 30,
         .data_n_pins = 6,
-        .rowsel_base_pin = 6,
+        .rowsel_base_pin = 36,
         .rowsel_n_pins = 5,
-        .clk_pin = 11,
-        .strobe_pin = 12,
-        .oen_pin = 13,
+        .clk_pin = 41,
+        .strobe_pin = 42,
+        .oen_pin = 43,
     },
     .color = {
-        .bitplanes = 10,
+        .bitplanes = 16,
         .separate_cie_channels = true,
-        .balanced_light_output = true,
+        .balanced_light_output = false,
+        .swap_rb_pins = false,
         .ccm_rg_shift = 6,
         .ccm_gb_shift = 7,
     },
@@ -361,7 +365,7 @@ int main()
 
     // The Hub75 driver is constantly running on core 1 with a frequency much higher than 200Hz. CPU load on core 1 is low due to DMA and PIO usage.
     // The animated examples are updated at 120 Hz.
-    const float fps = 100.0f;
+    const float fps = 60.0f;
     const float frame_delay_ms = 1000.0f / fps;
 
     struct repeating_timer timer;
