@@ -134,11 +134,11 @@ message(STATUS "")
 # dependency is pulled in at all.
 
 # Specify a tag from the hub75 project to fall back to a specific version
-# set(HUB75_TAG v5.0.1)
+# set(HUB75_TAG v5.2.1)
 # Set HUB75_TAG to main to compile with the latest version
 # NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR).
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
-set(HUB75_TAG PWM_ICND2153)
+set(HUB75_TAG v5.2.1)
 
 FetchContent_Declare(
     hub75

@@ -79,7 +79,7 @@ public:
         lv_anim_set_user_data(&a, this); // Pass self for callback context
         lv_anim_set_values(&a, 0, 3600);
 
-        uint32_t change_per_sec = 100;
+        uint32_t change_per_sec = 60;
         uint32_t duration_in_ms = lv_anim_speed_to_time(change_per_sec, 0, 3600);
         lv_anim_set_duration(&a, duration_in_ms);
 
