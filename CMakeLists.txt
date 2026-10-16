@@ -1,6 +1,6 @@
 # Generated Cmake Pico project file
 
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 23)
@@ -146,10 +146,11 @@ FetchContent_Declare(
     GIT_TAG        ${HUB75_TAG}
     GIT_SHALLOW    TRUE
     GIT_PROGRESS   TRUE
+    SOURCE_SUBDIR  _no_cmake_here   # source only, skips hub75's CMakeLists.txt
 )
 
 string(TIMESTAMP _fetch_start "%s")
-FetchContent_Populate(hub75)
+FetchContent_MakeAvailable(hub75)
 string(TIMESTAMP _fetch_end "%s")
 math(EXPR _fetch_elapsed "${_fetch_end} - ${_fetch_start}")
 
