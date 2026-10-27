@@ -60,7 +60,7 @@ pico_set_program_version(${PROJECT_NAME} "3.4.0")
 
 # Set LV_TAG to the LVGL version you want to use
 # Do not forget to configure lv_conf.h!!! See README.md for details.
-set(LV_TAG v9.5.0)
+set(LV_TAG v9.6.0)
 
 message(STATUS "Step 2/4 — Fetching LVGL ${LV_TAG} from GitHub...")
 message(STATUS "           First clone may take 1-2 minutes.")
