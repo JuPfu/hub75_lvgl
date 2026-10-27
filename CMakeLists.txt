@@ -138,7 +138,7 @@ message(STATUS "")
 # Set HUB75_TAG to main to compile with the latest version
 # NOTE: tracking "main" means this build can silently break the moment a breaking PR merges upstream (e.g. an API-changing PR).
 # Prefer pinning to a tag or specific commit hash once such changes land, then update deliberately.
-set(HUB75_TAG v5.2.1)
+set(HUB75_TAG v5.3.0)
 
 FetchContent_Declare(
     hub75
@@ -197,7 +197,9 @@ pico_enable_stdio_usb(${PROJECT_NAME}  1)
 
 # Generate PIO header for hub75's PIO program — single call, since hub75's own
 # CMakeLists.txt is never processed (no add_subdirectory), this is the only place it happens.
-pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio ${hub75_SOURCE_DIR}/src/icnd2153.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/hub75.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/icnd2153.pio)
+pico_generate_pio_header(${PROJECT_NAME} ${hub75_SOURCE_DIR}/src/fm6363.pio)
 
 target_sources(${PROJECT_NAME} PRIVATE
     # hub75 core driver — compiled directly into this executable (see note above)
