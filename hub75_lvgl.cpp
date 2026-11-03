@@ -33,6 +33,7 @@ constexpr Hub75Config panel_cfg{
         .sm_clockdiv_factor = 1.0f,               // the driver is fast - to prevent flicker or ghosting it might be worth a try to reduce state machine speed
         .base_latch_ns = 180,                     // wait time in nano-seconds to stabilise latch
         .base_addr_ns = 260,                      // wait time in nano-seconds to stabilise row addressing
+        .panel_gain = 80
     },
     .screen = {
         .rotation = Hub75Rotation::DEG_0,
